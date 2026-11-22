@@ -1,16 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import { useReadAloud } from './hooks/useReadAloud';
+import { useVoicePlayer } from './hooks/useVoicePlayer';
 import { TopBar } from './components/TopBar';
 import { MarkdownEditor } from './components/MarkdownEditor';
 import { MarkdownPreview } from './components/MarkdownPreview';
 import { ReadAloudBar } from './components/ReadAloudBar';
+import { VoiceManagerDrawer } from './components/VoiceManagerDrawer';
 import { SplitDivider } from './components/SplitDivider';
 import { calculateReadingStats } from './utils/readingStats';
 import { extractSpeechChunksFromElement, SpeechChunk } from './utils/textChunker';
 import { copyToClipboard, downloadMarkdownFile } from './utils/exportUtils';
 import { DEFAULT_SAMPLE_MARKDOWN } from './utils/sampleMarkdown';
-import { Eye } from 'lucide-react';
+import { Eye, AlertCircle } from 'lucide-react';
 
 export default function App() {
   const [content, setContent] = useLocalStorage<string>(
@@ -26,8 +27,6 @@ export default function App() {
     'markread_fontsize',
     'base'
   );
-  const [ttsRate, setTtsRate] = useLocalStorage<number>('markread_tts_rate', 1.0);
-  const [ttsVoice, setTtsVoice] = useLocalStorage<string | null>('markread_tts_voice', null);
   const [splitRatio, setSplitRatio] = useLocalStorage<number>('markread_split_ratio', 50);
   const [fullWidth, setFullWidth] = useLocalStorage<boolean>('markread_full_width', false);
 
@@ -62,21 +61,33 @@ export default function App() {
     }
   }, [content]);
 
-  // Web Speech API Hook
+  // Unified Multi-Engine Voice Player Hook (NV-1 to NV-4)
   const {
     status: ttsStatus,
     currentChunkIndex,
     voices,
+    selectedVoiceId,
+    selectVoice,
+    rate: ttsRate,
+    setRate: setTtsRate,
+    fallbackNotice,
+    setFallbackNotice,
+    isVoiceManagerOpen,
+    setIsVoiceManagerOpen,
+    isExportingAudio,
+    exportProgress,
+    exportNarrationAsWav,
+    piperEngine,
+    googleByokEngine,
     play: playTTS,
     pause: pauseTTS,
     resume: resumeTTS,
     stop: stopTTS,
     next: nextTTS,
     prev: prevTTS,
-  } = useReadAloud({
+    seek: seekTTS,
+  } = useVoicePlayer({
     chunks: speechChunks,
-    rate: ttsRate,
-    voiceURI: ttsVoice,
     onChunkChange: (_index, chunk) => {
       if (!articleRef.current) return;
 
@@ -151,6 +162,48 @@ export default function App() {
     setToastMessage('Document downloaded as document.md');
   }, [content]);
 
+  // NV-4.3: Export Narrated Document as WAV audio file
+  const handleExportAudio = useCallback(async () => {
+    setToastMessage('Synthesizing narration audio...');
+    const wavBlob = await exportNarrationAsWav();
+    if (wavBlob) {
+      const url = URL.createObjectURL(wavBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'document-narration.wav';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setToastMessage('Audio narration exported as document-narration.wav');
+    } else {
+      setToastMessage('Audio export failed');
+    }
+  }, [exportNarrationAsWav]);
+
+  // NV-4.2: Click paragraph/header to read from here
+  const handleArticleClick = useCallback(
+    (e: React.MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('a') || target.closest('button')) {
+        return;
+      }
+      const blockEl = target.closest('[data-block-index]');
+      if (blockEl) {
+        const blockIndexStr = blockEl.getAttribute('data-block-index');
+        if (blockIndexStr !== null) {
+          const blockIdx = parseInt(blockIndexStr, 10);
+          const targetChunkIdx = speechChunks.findIndex((c) => c.blockIndex === blockIdx);
+          if (targetChunkIdx !== -1) {
+            seekTTS(targetChunkIdx);
+            playTTS(targetChunkIdx);
+          }
+        }
+      }
+    },
+    [speechChunks, seekTTS, playTTS]
+  );
+
   const stats = calculateReadingStats(content);
 
   return (
@@ -194,6 +247,26 @@ export default function App() {
           >
             <Eye className="w-3.5 h-3.5" />
             <span>{toastMessage}</span>
+          </div>
+        )}
+
+        {/* Fallback Notice Banner */}
+        {fallbackNotice && (
+          <div
+            role="alert"
+            className="mb-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>{fallbackNotice}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFallbackNotice(null)}
+              className="text-amber-400 hover:text-amber-200 font-bold px-1.5"
+            >
+              ×
+            </button>
           </div>
         )}
 
@@ -247,7 +320,10 @@ export default function App() {
                 : 'flex-1 min-w-0'
             } ${mobileTab === 'preview' ? 'flex' : 'hidden md:flex'}`}
           >
-            <div className="bg-surface border border-borderSubtle rounded-lg p-4 md:p-8 flex-1 h-full overflow-y-auto shadow-sm">
+            <div
+              className="bg-surface border border-borderSubtle rounded-lg p-4 md:p-8 flex-1 h-full overflow-y-auto shadow-sm"
+              onClick={handleArticleClick}
+            >
               <MarkdownPreview
                 ref={articleRef}
                 content={content}
@@ -272,8 +348,26 @@ export default function App() {
         rate={ttsRate}
         onChangeRate={setTtsRate}
         voices={voices}
-        selectedVoiceURI={ttsVoice}
-        onChangeVoice={setTtsVoice}
+        selectedVoiceURI={selectedVoiceId}
+        onChangeVoice={(id) => {
+          const match = voices.find((v) => v.id === id);
+          if (match) selectVoice(match);
+        }}
+        onOpenVoiceManager={() => setIsVoiceManagerOpen(true)}
+        onExportAudio={handleExportAudio}
+        isExportingAudio={isExportingAudio}
+        exportProgress={exportProgress}
+      />
+
+      {/* Voice Manager Slide-Over Drawer */}
+      <VoiceManagerDrawer
+        isOpen={isVoiceManagerOpen}
+        onClose={() => setIsVoiceManagerOpen(false)}
+        selectedVoiceId={selectedVoiceId}
+        onSelectVoice={selectVoice}
+        browserVoices={voices.filter((v) => v.engine === 'browser')}
+        piperEngine={piperEngine}
+        googleByokEngine={googleByokEngine}
       />
     </div>
   );

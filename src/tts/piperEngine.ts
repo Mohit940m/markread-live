@@ -14,6 +14,11 @@ export class PiperTTSEngine implements TTSEngine {
   private worker: Worker | null = null;
   private currentAudio: HTMLAudioElement | null = null;
   private currentBlobUrl: string | null = null;
+
+  // Dedicated preview audio element for testing voices
+  private previewAudio: HTMLAudioElement | null = null;
+  private previewBlobUrl: string | null = null;
+
   private storedVoiceIds: Set<string> = new Set();
   private downloadCallbacks: Map<string, DownloadProgressCallback[]> = new Map();
   private synthesisResolvers: Map<
@@ -21,8 +26,15 @@ export class PiperTTSEngine implements TTSEngine {
     { resolve: (blob: Blob) => void; reject: (err: any) => void }
   > = new Map();
 
+  // Lookahead chunk prefetch cache (chunkId -> Blob)
+  private prefetchedBlobs: Map<number, Blob> = new Map();
+  private pendingPrefetches: Set<number> = new Set();
+
   async init(): Promise<void> {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || typeof Worker === 'undefined') {
+      this.isReady = false;
+      return;
+    }
 
     if (!this.worker) {
       try {
@@ -149,6 +161,30 @@ export class PiperTTSEngine implements TTSEngine {
     });
   }
 
+  /**
+   * Lookahead Chunk Prefetch (NV-4.1)
+   * Preemptively synthesizes the next sentence chunk in background worker
+   */
+  async prefetchChunk(chunk: SpeechChunk, voiceId: string): Promise<void> {
+    if (this.prefetchedBlobs.has(chunk.index) || this.pendingPrefetches.has(chunk.index)) {
+      return;
+    }
+    this.pendingPrefetches.add(chunk.index);
+    try {
+      const blob = await this.synthesizeChunkToBlob(chunk.index, chunk.text, voiceId);
+      this.prefetchedBlobs.set(chunk.index, blob);
+    } catch {
+      // Ignore prefetch error; speakChunk will retry
+    } finally {
+      this.pendingPrefetches.delete(chunk.index);
+    }
+  }
+
+  clearPrefetch(): void {
+    this.prefetchedBlobs.clear();
+    this.pendingPrefetches.clear();
+  }
+
   async speakChunk(
     chunk: SpeechChunk,
     voice: VoiceOption,
@@ -157,7 +193,13 @@ export class PiperTTSEngine implements TTSEngine {
     this.cleanupAudio();
 
     try {
-      const blob = await this.synthesizeChunkToBlob(chunk.index, chunk.text, voice.id);
+      let blob = this.prefetchedBlobs.get(chunk.index);
+      if (blob) {
+        this.prefetchedBlobs.delete(chunk.index);
+      } else {
+        blob = await this.synthesizeChunkToBlob(chunk.index, chunk.text, voice.id);
+      }
+
       const blobUrl = URL.createObjectURL(blob);
       this.currentBlobUrl = blobUrl;
 
@@ -203,6 +245,50 @@ export class PiperTTSEngine implements TTSEngine {
 
   stop(): void {
     this.cleanupAudio();
+    this.clearPrefetch();
+  }
+
+  /**
+   * Preview a voice sample without affecting document reading position (NV-3.3)
+   */
+  async previewVoice(
+    voice: VoiceOption,
+    sampleText = 'MarkRead brings your markdown to life with natural voices.'
+  ): Promise<void> {
+    this.stopPreview();
+
+    try {
+      const blob = await this.synthesizeChunkToBlob(-999, sampleText, voice.id);
+      const url = URL.createObjectURL(blob);
+      this.previewBlobUrl = url;
+
+      const audio = new Audio(url);
+      this.previewAudio = audio;
+
+      audio.onended = () => {
+        this.stopPreview();
+      };
+      audio.onerror = () => {
+        this.stopPreview();
+      };
+
+      await audio.play();
+    } catch (err) {
+      this.stopPreview();
+      throw err;
+    }
+  }
+
+  stopPreview(): void {
+    if (this.previewAudio) {
+      this.previewAudio.pause();
+      this.previewAudio.src = '';
+      this.previewAudio = null;
+    }
+    if (this.previewBlobUrl) {
+      URL.revokeObjectURL(this.previewBlobUrl);
+      this.previewBlobUrl = null;
+    }
   }
 
   private cleanupAudio(): void {

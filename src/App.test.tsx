@@ -158,4 +158,42 @@ describe('App Component — Epics 1, 2, 3 Integration Tests', () => {
     fireEvent.click(centeredBtn);
     expect(previewContainer.className).toContain('max-w-3xl');
   });
+
+  it('opens and closes Voice Manager Drawer from ReadAloudBar (NV-3.1)', () => {
+    render(<App />);
+
+    // Initially drawer is closed
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    // Click manage voices button
+    const manageBtn = screen.getByRole('button', { name: /manage and download natural neural voices/i });
+    fireEvent.click(manageBtn);
+
+    // Drawer is now open
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Voice Manager')).toBeInTheDocument();
+
+    // Close drawer via close button
+    const closeBtn = screen.getByRole('button', { name: /close voice manager/i });
+    fireEvent.click(closeBtn);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('jumps reading position when a paragraph is clicked in the preview (NV-4.2)', async () => {
+    render(<App />);
+
+    await vi.waitFor(() => {
+      const paragraph = document.querySelector('[data-block-index="0"]');
+      expect(paragraph).not.toBeNull();
+    });
+
+    const paragraph = document.querySelector('[data-block-index="0"]');
+    if (paragraph) {
+      act(() => {
+        fireEvent.click(paragraph);
+      });
+      expect(window.speechSynthesis.speak).toHaveBeenCalled();
+    }
+  });
 });

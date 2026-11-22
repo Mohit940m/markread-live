@@ -8,11 +8,14 @@ import {
   Gauge,
   Volume2,
   ChevronDown,
+  Download,
+  SlidersHorizontal,
+  Loader2,
 } from 'lucide-react';
-import { ReadAloudStatus } from '../hooks/useReadAloud';
+import { VoiceOption, PlayerStatus } from '../tts/types';
 
 interface ReadAloudBarProps {
-  status: ReadAloudStatus;
+  status: PlayerStatus;
   currentChunkIndex: number;
   totalChunks: number;
   onPlay: () => void;
@@ -23,9 +26,13 @@ interface ReadAloudBarProps {
   onPrev: () => void;
   rate: number;
   onChangeRate: (rate: number) => void;
-  voices: SpeechSynthesisVoice[];
+  voices?: VoiceOption[] | SpeechSynthesisVoice[];
   selectedVoiceURI: string | null;
   onChangeVoice: (voiceURI: string) => void;
+  onOpenVoiceManager?: () => void;
+  onExportAudio?: () => void;
+  isExportingAudio?: boolean;
+  exportProgress?: number;
 }
 
 const SPEED_OPTIONS = [0.75, 1.0, 1.25, 1.5, 2.0];
@@ -42,9 +49,13 @@ export const ReadAloudBar: FC<ReadAloudBarProps> = ({
   onPrev,
   rate,
   onChangeRate,
-  voices,
+  voices = [],
   selectedVoiceURI,
   onChangeVoice,
+  onOpenVoiceManager,
+  onExportAudio,
+  isExportingAudio = false,
+  exportProgress = 0,
 }) => {
   const [showSettings, setShowSettings] = useState(false);
 
@@ -89,6 +100,24 @@ export const ReadAloudBar: FC<ReadAloudBarProps> = ({
       onPlay();
     }
   };
+
+  // Normalize voice list whether VoiceOption[] or SpeechSynthesisVoice[]
+  const normalizedVoices = voices.map((v) => {
+    if ('id' in v) {
+      return {
+        id: v.id,
+        name: v.name,
+        lang: v.lang,
+        quality: v.quality,
+      };
+    }
+    return {
+      id: v.voiceURI,
+      name: v.name,
+      lang: v.lang,
+      quality: 'standard' as const,
+    };
+  });
 
   return (
     <div
@@ -164,23 +193,39 @@ export const ReadAloudBar: FC<ReadAloudBarProps> = ({
             </button>
           </div>
 
-          {/* Settings Toggle Button (Speed & Voice) */}
-          <button
-            type="button"
-            onClick={() => setShowSettings((prev) => !prev)}
-            title="Audio voice and speed settings"
-            aria-label="Audio voice and speed settings"
-            className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border transition-colors ${
-              showSettings
-                ? 'bg-accent/15 border-accent text-accent'
-                : 'bg-elevated border-borderSubtle text-textMuted hover:text-textPrimary'
-            }`}
-          >
-            <Gauge className="w-4 h-4" />
-          </button>
+          {/* Right Action Buttons */}
+          <div className="flex items-center gap-1.5">
+            {/* Open Voice Manager Drawer Button */}
+            {onOpenVoiceManager && (
+              <button
+                type="button"
+                onClick={onOpenVoiceManager}
+                title="Manage and download natural neural voices"
+                aria-label="Manage and download natural neural voices"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-elevated hover:bg-borderSubtle text-accent border border-accent/30 transition-colors"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Settings Toggle Button (Speed & Voice) */}
+            <button
+              type="button"
+              onClick={() => setShowSettings((prev) => !prev)}
+              title="Audio voice and speed settings"
+              aria-label="Audio voice and speed settings"
+              className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border transition-colors ${
+                showSettings
+                  ? 'bg-accent/15 border-accent text-accent'
+                  : 'bg-elevated border-borderSubtle text-textMuted hover:text-textPrimary'
+              }`}
+            >
+              <Gauge className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Audio Settings Panel (Speed & Voice) */}
+        {/* Audio Settings Panel (Speed, Voice & Export) */}
         {showSettings && (
           <div className="pt-2 border-t border-borderSubtle flex flex-wrap items-center justify-between gap-3 text-xs animate-fade-in">
             {/* Speed Presets */}
@@ -205,7 +250,7 @@ export const ReadAloudBar: FC<ReadAloudBarProps> = ({
             </div>
 
             {/* Voice Dropdown */}
-            {voices.length > 0 && (
+            {normalizedVoices.length > 0 && (
               <div className="flex items-center gap-1.5 flex-1 max-w-[200px] md:max-w-[240px]">
                 <Volume2 className="w-3.5 h-3.5 text-textMuted shrink-0" />
                 <div className="relative w-full">
@@ -216,8 +261,8 @@ export const ReadAloudBar: FC<ReadAloudBarProps> = ({
                     className="w-full appearance-none bg-elevated border border-borderSubtle text-textPrimary rounded-lg px-2.5 py-1 pr-6 text-xs truncate focus:outline-none focus:ring-1 focus:ring-accent"
                   >
                     <option value="">Default Voice</option>
-                    {voices.map((v) => (
-                      <option key={v.voiceURI} value={v.voiceURI}>
+                    {normalizedVoices.map((v) => (
+                      <option key={v.id} value={v.id}>
                         {v.name} ({v.lang})
                       </option>
                     ))}
@@ -225,6 +270,28 @@ export const ReadAloudBar: FC<ReadAloudBarProps> = ({
                   <ChevronDown className="w-3.5 h-3.5 text-textMuted absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
+            )}
+
+            {/* Export Narration as WAV Audio Button (NV-4.3) */}
+            {onExportAudio && (
+              <button
+                type="button"
+                onClick={onExportAudio}
+                disabled={isExportingAudio}
+                className="px-2.5 py-1 rounded-lg bg-elevated hover:bg-borderSubtle text-textPrimary text-[11px] font-medium flex items-center gap-1.5 border border-borderSubtle transition-colors ml-auto disabled:opacity-50"
+              >
+                {isExportingAudio ? (
+                  <>
+                    <Loader2 className="w-3 h-3 text-accent animate-spin" />
+                    <span>Exporting ({exportProgress}%)</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3 h-3 text-accent" />
+                    <span>Download .wav</span>
+                  </>
+                )}
+              </button>
             )}
           </div>
         )}
