@@ -9,6 +9,13 @@ describe('MarkdownEditor Component (US-2.3)', () => {
     const textarea = screen.getByTestId('markdown-textarea');
     expect(textarea).toBeInTheDocument();
     expect(textarea).toHaveAttribute('placeholder', 'Type or paste Markdown here, or drop a .md file...');
+    expect(textarea.className).toContain('h-full');
+    expect(textarea.className).toContain('min-h-0');
+
+    const container = screen.getByTestId('markdown-editor-container');
+    expect(container.className).toContain('h-full');
+    expect(container.className).toContain('w-full');
+    expect(container.className).toContain('flex-1');
   });
 
   it('triggers onChange when user types in textarea', () => {

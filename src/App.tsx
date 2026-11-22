@@ -206,14 +206,14 @@ export default function App() {
           <div
             data-testid="editor-pane-container"
             style={{ width: showEditor ? `${splitRatio}%` : undefined }}
-            className={`h-full min-h-0 transition-[width] duration-75 overflow-hidden ${
+            className={`h-full min-h-0 flex-col transition-[width] duration-75 overflow-hidden ${
               !showEditor
                 ? mobileTab === 'editor'
                   ? 'w-full flex md:hidden'
                   : 'hidden'
                 : mobileTab === 'editor'
-                ? 'w-full flex'
-                : 'hidden md:flex'
+                ? 'w-full flex flex-col'
+                : 'hidden md:flex md:flex-col'
             }`}
           >
             <MarkdownEditor

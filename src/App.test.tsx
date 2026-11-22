@@ -24,8 +24,9 @@ describe('App Component — Epics 1, 2, 3 Integration Tests', () => {
     const toggleBtn = screen.getByRole('button', { name: /hide code/i });
     const editorContainer = screen.getByTestId('editor-pane-container');
 
-    // Initially editor is visible on desktop
+    // Initially editor is visible on desktop with vertical column layout
     expect(editorContainer.className).toContain('md:flex');
+    expect(editorContainer.className).toContain('md:flex-col');
     expect(editorContainer.className).not.toBe('hidden');
 
     // Click to hide editor — must strictly have 'hidden' and NOT 'md:flex'

@@ -93,12 +93,12 @@ export const MarkdownEditor: FC<MarkdownEditorProps> = ({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative flex flex-col h-full bg-surface border border-borderSubtle rounded-lg overflow-hidden transition-all ${
+      className={`relative flex flex-col flex-1 h-full w-full min-h-0 bg-surface border border-borderSubtle rounded-lg overflow-hidden transition-all ${
         isDragging ? 'ring-2 ring-accent ring-inset bg-accent/5' : ''
       }`}
     >
       {/* Editor sub-toolbar */}
-      <div className="flex items-center justify-between px-3 py-2 bg-elevated/80 border-b border-borderSubtle text-xs text-textMuted select-none">
+      <div className="flex items-center justify-between px-3 py-2 bg-elevated/80 border-b border-borderSubtle text-xs text-textMuted select-none shrink-0">
         <span className="font-mono text-xs uppercase tracking-wider font-medium text-textMuted">
           Markdown Editor
         </span>
@@ -162,7 +162,7 @@ export const MarkdownEditor: FC<MarkdownEditorProps> = ({
         placeholder="Type or paste Markdown here, or drop a .md file..."
         data-testid="markdown-textarea"
         spellCheck="false"
-        className="flex-1 w-full p-4 bg-transparent text-textPrimary font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder:text-textMuted/50"
+        className="flex-1 h-full min-h-0 w-full p-4 bg-transparent text-textPrimary font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder:text-textMuted/50 overflow-y-auto"
       />
     </div>
   );

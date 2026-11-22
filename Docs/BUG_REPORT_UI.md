@@ -81,7 +81,23 @@ Based on the screenshot submitted from local testing:
   4. When `fullWidth === false`, retains the eye-comfort centered measure (`max-w-3xl mx-auto`).
   5. Added toast notification confirmations and keyboard accessibility.
 - **Verification:** Unit tests in `src/components/TopBar.test.tsx` and integration tests in `src/App.test.tsx` assert class transitions between `max-w-none` and `max-w-3xl`.
-- **Commit:** `4bf2d1e` (current step)
+- **Commit:** `b6052c9`
+
+---
+
+### [x] Issue 5: Markdown editor renders as a small box and does not fill available vertical space
+- **Severity:** High (Editor ergonomics defect)
+- **Observed Behavior:** When the editor was showing, it appeared as a small collapsed box with only 4–5 lines of visible text instead of expanding to fill 100% of the available vertical viewport height alongside the preview pane.
+- **Root Cause:**
+  1. In `src/App.tsx`, `editor-pane-container` had `hidden md:flex` without `md:flex-col`. In default horizontal flex row layout, children do not stretch vertically unless explicitly styled.
+  2. In `src/components/MarkdownEditor.tsx`, the root container had `h-full` but lacked `flex-1 w-full min-h-0`, causing flex shrink collapse inside flexbox.
+  3. The editor sub-toolbar lacked `shrink-0`, and the `<textarea>` needed explicit flexbox growth parameters (`flex-1 h-full min-h-0`) to claim the entire available vertical space.
+- **Resolution:**
+  1. Added `md:flex-col` to `editor-pane-container` in `App.tsx`.
+  2. Added `w-full h-full flex-1 min-h-0 flex flex-col` to `MarkdownEditor.tsx`.
+  3. Added `shrink-0` to the editor sub-toolbar and `flex-1 h-full min-h-0 w-full overflow-y-auto` to the `<textarea>`.
+- **Verification:** Unit tests in `src/components/MarkdownEditor.test.tsx` and `src/App.test.tsx` assert `md:flex-col` on editor-pane-container and `w-full h-full flex-1 min-h-0` on editor container and textarea.
+- **Commit:** `c279e8a` (current step)
 
 ---
 
@@ -90,9 +106,4 @@ Based on the screenshot submitted from local testing:
 - **Total Test Suites:** 16 files passed
 - **Total Unit Tests:** 69 passed (100%)
 - **Production Build (`npm run build`):** Succeeded with 0 errors
-- **Initial Bundle Size:** 78.4 kB gzipped (Budget: < 120 kB)
-
-- **Total Test Suites:** 16 files passed
-- **Total Unit Tests:** 67 passed (100%)
-- **Production Build (`npm run build`):** Succeeded with 0 errors
-- **Initial Bundle Size:** 77.44 kB gzipped (Budget: < 120 kB)
+- **Initial Bundle Size:** 78.65 kB gzipped (Budget: < 120 kB)
