@@ -58,4 +58,20 @@ describe('TopBar Component (US-3.2, US-3.3, US-3.4)', () => {
     fireEvent.click(fontBtn);
     expect(handleChangeSize).toHaveBeenCalledWith('lg');
   });
+
+  it('triggers onToggleFullWidth when Full Width button is clicked (Issue 4)', () => {
+    const handleToggle = vi.fn();
+    render(
+      <TopBar
+        {...defaultProps}
+        fullWidth={false}
+        onToggleFullWidth={handleToggle}
+      />
+    );
+
+    const fullWidthBtn = screen.getByRole('button', { name: /switch to full width mode/i });
+    expect(fullWidthBtn).toBeInTheDocument();
+    fireEvent.click(fullWidthBtn);
+    expect(handleToggle).toHaveBeenCalledTimes(1);
+  });
 });

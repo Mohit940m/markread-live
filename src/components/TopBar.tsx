@@ -8,6 +8,8 @@ import {
   Copy,
   Download,
   Sparkles,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { ReadingStats } from '../utils/readingStats';
 
@@ -25,6 +27,8 @@ interface TopBarProps {
   onDownloadMarkdown?: () => void;
   activeMobileTab?: 'preview' | 'editor';
   onChangeMobileTab?: (tab: 'preview' | 'editor') => void;
+  fullWidth?: boolean;
+  onToggleFullWidth?: () => void;
 }
 
 export const TopBar: FC<TopBarProps> = ({
@@ -41,6 +45,8 @@ export const TopBar: FC<TopBarProps> = ({
   onDownloadMarkdown,
   activeMobileTab = 'preview',
   onChangeMobileTab,
+  fullWidth = false,
+  onToggleFullWidth,
 }) => {
   const nextFontSize: Record<'sm' | 'base' | 'lg', 'sm' | 'base' | 'lg'> = {
     sm: 'base',
@@ -149,6 +155,35 @@ export const TopBar: FC<TopBarProps> = ({
           <Type className="w-4 h-4 text-textMuted" />
           <span className="uppercase text-[11px] font-mono font-bold">{fontSize}</span>
         </button>
+
+        {/* Full Width / Centered Reading Mode Toggle */}
+        {onToggleFullWidth && (
+          <button
+            type="button"
+            onClick={onToggleFullWidth}
+            title={
+              fullWidth
+                ? 'Switch to Centered Reading Mode'
+                : 'Switch to Full Width Mode'
+            }
+            aria-label={
+              fullWidth
+                ? 'Switch to Centered Reading Mode'
+                : 'Switch to Full Width Mode'
+            }
+            className={`min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg border transition-colors ${
+              fullWidth
+                ? 'bg-accent/15 border-accent/40 text-accent'
+                : 'bg-elevated hover:bg-borderSubtle text-textMuted hover:text-textPrimary border-borderSubtle'
+            }`}
+          >
+            {fullWidth ? (
+              <Minimize2 className="w-4 h-4" />
+            ) : (
+              <Maximize2 className="w-4 h-4" />
+            )}
+          </button>
+        )}
 
         {/* Copy Markdown */}
         {onCopyMarkdown && (

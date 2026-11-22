@@ -132,4 +132,29 @@ describe('App Component — Epics 1, 2, 3 Integration Tests', () => {
     // SplitDivider should now be hidden
     expect(screen.queryByTestId('split-divider')).not.toBeInTheDocument();
   });
+
+  it('toggles between full width mode and centered reading mode when editor is hidden (Issue 4)', () => {
+    render(<App />);
+
+    // Hide code editor first
+    const toggleBtn = screen.getByRole('button', { name: /hide code/i });
+    fireEvent.click(toggleBtn);
+
+    const previewContainer = screen.getByTestId('preview-pane-container');
+    // Initially centered mode is active
+    expect(previewContainer.className).toContain('max-w-3xl');
+
+    // Click Full Width button
+    const fullWidthBtn = screen.getByRole('button', { name: /switch to full width mode/i });
+    fireEvent.click(fullWidthBtn);
+
+    // Preview container now uses full width (max-w-none)
+    expect(previewContainer.className).toContain('max-w-none');
+    expect(previewContainer.className).not.toContain('max-w-3xl');
+
+    // Click again to toggle back to centered reading mode
+    const centeredBtn = screen.getByRole('button', { name: /switch to centered reading mode/i });
+    fireEvent.click(centeredBtn);
+    expect(previewContainer.className).toContain('max-w-3xl');
+  });
 });

@@ -29,6 +29,7 @@ export default function App() {
   const [ttsRate, setTtsRate] = useLocalStorage<number>('markread_tts_rate', 1.0);
   const [ttsVoice, setTtsVoice] = useLocalStorage<string | null>('markread_tts_voice', null);
   const [splitRatio, setSplitRatio] = useLocalStorage<number>('markread_split_ratio', 50);
+  const [fullWidth, setFullWidth] = useLocalStorage<boolean>('markread_full_width', false);
 
   const [showEditor, setShowEditor] = useState<boolean>(true);
   const [mobileTab, setMobileTab] = useState<'preview' | 'editor'>('preview');
@@ -172,6 +173,15 @@ export default function App() {
         onDownloadMarkdown={handleDownloadMarkdown}
         activeMobileTab={mobileTab}
         onChangeMobileTab={setMobileTab}
+        fullWidth={fullWidth}
+        onToggleFullWidth={() => {
+          setFullWidth((prev) => !prev);
+          setToastMessage(
+            !fullWidth
+              ? 'Switched to Full Width mode'
+              : 'Switched to Centered Reading mode'
+          );
+        }}
       />
 
       {/* Main Fluid Workspace Container */}
@@ -230,7 +240,11 @@ export default function App() {
               width: showEditor ? `${100 - splitRatio}%` : undefined,
             }}
             className={`h-full min-h-0 flex flex-col transition-[width] duration-75 overflow-hidden ${
-              !showEditor ? 'flex-1 max-w-3xl mx-auto w-full' : 'flex-1 min-w-0'
+              !showEditor
+                ? fullWidth
+                  ? 'flex-1 w-full max-w-none'
+                  : 'flex-1 max-w-3xl mx-auto w-full'
+                : 'flex-1 min-w-0'
             } ${mobileTab === 'preview' ? 'flex' : 'hidden md:flex'}`}
           >
             <div className="bg-surface border border-borderSubtle rounded-lg p-4 md:p-8 flex-1 h-full overflow-y-auto shadow-sm">

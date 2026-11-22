@@ -70,9 +70,27 @@ Based on the screenshot submitted from local testing:
 - **Verification:** Integration tests in `src/App.test.tsx` assert dynamic style width percentages and proper divider mounting.
 - **Commit:** `0062133`
 
+### [x] Issue 4: Full-width reading mode option when editor is hidden
+- **Severity:** Medium (Ergonomics & user layout preference)
+- **Observed Behavior:** When the editor was hidden, the preview was locked into a fixed centered measure (`max-w-3xl mx-auto`), leaving wide empty margins on widescreen monitors with no option to use the full width of the screen.
+- **Root Cause:** Hardcoded `max-w-3xl` constraint without a user-facing toggle between centered reading mode and edge-to-edge full-width layout.
+- **Resolution:**
+  1. Added `fullWidth` state persisted in `localStorage` under `markread_full_width`.
+  2. Added a dedicated `Full Width / Centered Reading Mode` button in `TopBar` with `Maximize2` / `Minimize2` icons and touch-friendly `>= 44x44px` area.
+  3. When `fullWidth === true`, preview expands to `w-full max-w-none` so wide tables, code snippets, and checklists use the full display.
+  4. When `fullWidth === false`, retains the eye-comfort centered measure (`max-w-3xl mx-auto`).
+  5. Added toast notification confirmations and keyboard accessibility.
+- **Verification:** Unit tests in `src/components/TopBar.test.tsx` and integration tests in `src/App.test.tsx` assert class transitions between `max-w-none` and `max-w-3xl`.
+- **Commit:** `4bf2d1e` (current step)
+
 ---
 
 ## 3. Test & Build Verification Summary
+
+- **Total Test Suites:** 16 files passed
+- **Total Unit Tests:** 69 passed (100%)
+- **Production Build (`npm run build`):** Succeeded with 0 errors
+- **Initial Bundle Size:** 78.4 kB gzipped (Budget: < 120 kB)
 
 - **Total Test Suites:** 16 files passed
 - **Total Unit Tests:** 67 passed (100%)
