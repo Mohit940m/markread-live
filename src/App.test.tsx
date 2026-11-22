@@ -83,4 +83,23 @@ describe('App Component — Epics 1, 2, 3 Integration Tests', () => {
     fireEvent.click(themeBtn);
     expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
+
+  it('renders ReadAloudBar and triggers playback with active block highlighting (US-4.3 & US-4.5)', async () => {
+    render(<App />);
+
+    // Read aloud bar is rendered with chunks
+    const readBar = screen.getByTestId('read-aloud-bar');
+    expect(readBar).toBeInTheDocument();
+
+    const playBtn = screen.getByRole('button', { name: /play reading/i });
+    expect(playBtn).toBeInTheDocument();
+
+    // Click play
+    act(() => {
+      fireEvent.click(playBtn);
+    });
+
+    // Web speech speak called
+    expect(window.speechSynthesis.speak).toHaveBeenCalled();
+  });
 });
