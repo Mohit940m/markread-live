@@ -55,4 +55,13 @@ describe('MarkdownPreview Component (US-2.1)', () => {
     const tableContainer = container.querySelector('.overflow-x-auto');
     expect(tableContainer).toBeInTheDocument();
   });
+
+  it('renders fenced code blocks with language and copy button', () => {
+    const markdown = '```js\nconsole.log("hello world");\n```';
+    render(<MarkdownPreview content={markdown} />);
+
+    expect(screen.getByText('js')).toBeInTheDocument();
+    expect(screen.getByText(/hello world/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /copy code/i })).toBeInTheDocument();
+  });
 });

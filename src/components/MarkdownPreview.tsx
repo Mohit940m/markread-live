@@ -1,6 +1,8 @@
 import { FC, ComponentPropsWithoutRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
+import { CodeBlock } from './CodeBlock';
 
 interface MarkdownPreviewProps {
   content: string;
@@ -27,6 +29,7 @@ export const MarkdownPreview: FC<MarkdownPreviewProps> = ({
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
         components={{
           // Ensure all links open securely in new tab with noopener noreferrer
           a: ({ href, children, ...props }: ComponentPropsWithoutRef<'a'>) => (
@@ -40,6 +43,33 @@ export const MarkdownPreview: FC<MarkdownPreviewProps> = ({
               {children}
             </a>
           ),
+          // Custom code block renderer with syntax highlighting and one-click copy button
+          code: ({ className, children, ...props }: ComponentPropsWithoutRef<'code'>) => {
+            const match = /language-(\w+)/.exec(className || '');
+            const codeString = String(children).replace(/\n$/, '');
+            const isMultiLine = codeString.includes('\n');
+
+            if (match || isMultiLine) {
+              return (
+                <CodeBlock language={match ? match[1] : undefined} codeString={codeString}>
+                  <code className={className} {...props}>
+                    {children}
+                  </code>
+                </CodeBlock>
+              );
+            }
+
+            return (
+              <code
+                className="bg-elevated px-1.5 py-0.5 rounded text-accent font-mono text-sm border border-borderSubtle"
+                {...props}
+              >
+                {children}
+              </code>
+            );
+          },
+          // Customize pre tag so it doesn't double-wrap our CodeBlock
+          pre: ({ children }: ComponentPropsWithoutRef<'pre'>) => <>{children}</>,
           // Wrap tables in horizontal overflow scroll container so narrow screens do not break
           table: ({ children, ...props }: ComponentPropsWithoutRef<'table'>) => (
             <div className="overflow-x-auto my-4 rounded border border-borderSubtle">
@@ -73,7 +103,6 @@ export const MarkdownPreview: FC<MarkdownPreviewProps> = ({
             </blockquote>
           ),
           p: ({ children, ...props }: ComponentPropsWithoutRef<'p'>) => {
-            // Assign data-chunk-index if available for reading highlight
             const isHighlight = activeChunkIndex !== null;
             return (
               <p
