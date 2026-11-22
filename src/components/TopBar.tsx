@@ -61,11 +61,11 @@ export const TopBar: FC<TopBarProps> = ({
 
         {/* Mobile View Switcher (< 768px) */}
         {onChangeMobileTab && (
-          <div className="flex md:hidden bg-elevated p-0.5 rounded-lg border border-borderSubtle text-xs">
+          <div className="flex md:hidden bg-elevated p-1 rounded-lg border border-borderSubtle text-xs">
             <button
               type="button"
               onClick={() => onChangeMobileTab('preview')}
-              className={`px-2.5 py-1 rounded font-medium transition-all ${
+              className={`min-h-[44px] px-3 py-2 rounded-md font-medium transition-all ${
                 activeMobileTab === 'preview'
                   ? 'bg-surface text-accent shadow-sm'
                   : 'text-textMuted hover:text-textPrimary'
@@ -76,7 +76,7 @@ export const TopBar: FC<TopBarProps> = ({
             <button
               type="button"
               onClick={() => onChangeMobileTab('editor')}
-              className={`px-2.5 py-1 rounded font-medium transition-all ${
+              className={`min-h-[44px] px-3 py-2 rounded-md font-medium transition-all ${
                 activeMobileTab === 'editor'
                   ? 'bg-surface text-accent shadow-sm'
                   : 'text-textMuted hover:text-textPrimary'
@@ -144,10 +144,10 @@ export const TopBar: FC<TopBarProps> = ({
           type="button"
           onClick={() => onChangeFontSize(nextFontSize[fontSize])}
           title={`Adjust reading font size (Current: ${fontSize.toUpperCase()})`}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-elevated hover:bg-borderSubtle text-textPrimary border border-borderSubtle transition-colors"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs font-medium bg-elevated hover:bg-borderSubtle text-textPrimary border border-borderSubtle transition-colors"
         >
-          <Type className="w-3.5 h-3.5 text-textMuted" />
-          <span className="uppercase text-[11px] font-mono">{fontSize}</span>
+          <Type className="w-4 h-4 text-textMuted" />
+          <span className="uppercase text-[11px] font-mono font-bold">{fontSize}</span>
         </button>
 
         {/* Copy Markdown */}
@@ -156,7 +156,7 @@ export const TopBar: FC<TopBarProps> = ({
             type="button"
             onClick={onCopyMarkdown}
             title="Copy raw Markdown to clipboard"
-            className="hidden sm:flex p-2 rounded-lg bg-elevated hover:bg-borderSubtle text-textMuted hover:text-textPrimary border border-borderSubtle transition-colors"
+            className="hidden sm:flex min-h-[44px] min-w-[44px] items-center justify-center p-2 rounded-lg bg-elevated hover:bg-borderSubtle text-textMuted hover:text-textPrimary border border-borderSubtle transition-colors"
           >
             <Copy className="w-4 h-4" />
           </button>
@@ -168,7 +168,7 @@ export const TopBar: FC<TopBarProps> = ({
             type="button"
             onClick={onDownloadMarkdown}
             title="Download as .md file"
-            className="hidden sm:flex p-2 rounded-lg bg-elevated hover:bg-borderSubtle text-textMuted hover:text-textPrimary border border-borderSubtle transition-colors"
+            className="hidden sm:flex min-h-[44px] min-w-[44px] items-center justify-center p-2 rounded-lg bg-elevated hover:bg-borderSubtle text-textMuted hover:text-textPrimary border border-borderSubtle transition-colors"
           >
             <Download className="w-4 h-4" />
           </button>
@@ -179,7 +179,7 @@ export const TopBar: FC<TopBarProps> = ({
           type="button"
           onClick={onToggleTheme}
           title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
-          className="p-2 rounded-lg bg-elevated hover:bg-borderSubtle text-textPrimary border border-borderSubtle transition-colors"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg bg-elevated hover:bg-borderSubtle text-textPrimary border border-borderSubtle transition-colors"
           aria-label="Toggle color theme"
         >
           {theme === 'dark' ? (

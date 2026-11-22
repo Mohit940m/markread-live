@@ -119,7 +119,7 @@ export const ReadAloudBar: FC<ReadAloudBarProps> = ({
               disabled={!isActive || currentChunkIndex <= 0}
               title="Previous sentence"
               aria-label="Previous sentence"
-              className="w-10 h-10 flex items-center justify-center rounded-xl bg-elevated hover:bg-borderSubtle text-textPrimary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-elevated hover:bg-borderSubtle text-textPrimary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <SkipBack className="w-4 h-4" />
             </button>
@@ -130,7 +130,7 @@ export const ReadAloudBar: FC<ReadAloudBarProps> = ({
               onClick={handlePlayPause}
               title={isPlaying ? 'Pause reading (Space)' : 'Play reading (Space)'}
               aria-label={isPlaying ? 'Pause reading' : 'Play reading'}
-              className="w-11 h-11 flex items-center justify-center rounded-xl bg-accent hover:bg-accent-hover text-canvas shadow-md transition-transform active:scale-95"
+              className="min-w-[44px] min-h-[44px] w-11 h-11 flex items-center justify-center rounded-xl bg-accent hover:bg-accent-hover text-canvas shadow-md transition-transform active:scale-95"
             >
               {isPlaying ? (
                 <Pause className="w-5 h-5 fill-current text-[#0F1117]" />
@@ -146,7 +146,7 @@ export const ReadAloudBar: FC<ReadAloudBarProps> = ({
               disabled={!isActive || currentChunkIndex >= totalChunks - 1}
               title="Next sentence"
               aria-label="Next sentence"
-              className="w-10 h-10 flex items-center justify-center rounded-xl bg-elevated hover:bg-borderSubtle text-textPrimary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-elevated hover:bg-borderSubtle text-textPrimary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <SkipForward className="w-4 h-4" />
             </button>
@@ -158,7 +158,7 @@ export const ReadAloudBar: FC<ReadAloudBarProps> = ({
               disabled={!isActive}
               title="Stop reading"
               aria-label="Stop reading"
-              className="w-10 h-10 flex items-center justify-center rounded-xl bg-elevated hover:bg-red-500/10 hover:text-red-400 text-textMuted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-elevated hover:bg-red-500/10 hover:text-red-400 text-textMuted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <Square className="w-4 h-4" />
             </button>
@@ -170,7 +170,7 @@ export const ReadAloudBar: FC<ReadAloudBarProps> = ({
             onClick={() => setShowSettings((prev) => !prev)}
             title="Audio voice and speed settings"
             aria-label="Audio voice and speed settings"
-            className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-colors ${
+            className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border transition-colors ${
               showSettings
                 ? 'bg-accent/15 border-accent text-accent'
                 : 'bg-elevated border-borderSubtle text-textMuted hover:text-textPrimary'
