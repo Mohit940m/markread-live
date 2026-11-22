@@ -186,11 +186,18 @@ export default function App() {
 
         {/* Content View Layout */}
         <div className="flex-1 flex gap-6 min-h-[calc(100vh-170px)]">
-          {/* Editor Pane (Hidden on mobile when tab is 'preview') */}
+          {/* Editor Pane (Strictly hidden on desktop when showEditor is false) */}
           <div
+            data-testid="editor-pane-container"
             className={`flex-1 transition-all duration-300 ${
-              showEditor ? 'md:flex' : 'hidden'
-            } ${mobileTab === 'editor' ? 'flex' : 'hidden md:flex'}`}
+              !showEditor
+                ? mobileTab === 'editor'
+                  ? 'flex md:hidden'
+                  : 'hidden'
+                : mobileTab === 'editor'
+                ? 'flex'
+                : 'hidden md:flex'
+            }`}
           >
             <MarkdownEditor
               value={content}
@@ -200,8 +207,9 @@ export default function App() {
             />
           </div>
 
-          {/* Preview Pane (Always available; full-width or centered when editor is hidden) */}
+          {/* Preview Pane (Always available on desktop; full-width or centered when editor is hidden) */}
           <div
+            data-testid="preview-pane-container"
             className={`flex-1 transition-all duration-300 ${
               !showEditor ? 'max-w-3xl mx-auto' : ''
             } ${mobileTab === 'preview' ? 'flex flex-col' : 'hidden md:flex md:flex-col'}`}

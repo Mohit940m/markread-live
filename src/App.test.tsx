@@ -19,17 +19,25 @@ describe('App Component — Epics 1, 2, 3 Integration Tests', () => {
     expect(screen.getByTestId('markdown-article')).toBeInTheDocument();
   });
 
-  it('toggles editor visibility when Show/Hide Code button is clicked (US-3.2)', () => {
+  it('toggles editor visibility when Show/Hide Code button is clicked (US-3.2 & Bug Fix 1)', () => {
     render(<App />);
     const toggleBtn = screen.getByRole('button', { name: /hide code/i });
+    const editorContainer = screen.getByTestId('editor-pane-container');
 
-    // Click to hide editor
+    // Initially editor is visible on desktop
+    expect(editorContainer.className).toContain('md:flex');
+    expect(editorContainer.className).not.toBe('hidden');
+
+    // Click to hide editor — must strictly have 'hidden' and NOT 'md:flex'
     fireEvent.click(toggleBtn);
     expect(screen.getByRole('button', { name: /show code/i })).toBeInTheDocument();
+    expect(editorContainer.className).toContain('hidden');
+    expect(editorContainer.className).not.toContain('md:flex');
 
-    // Click again to show editor
+    // Click again to show editor — must restore 'md:flex'
     fireEvent.click(screen.getByRole('button', { name: /show code/i }));
     expect(screen.getByRole('button', { name: /hide code/i })).toBeInTheDocument();
+    expect(editorContainer.className).toContain('md:flex');
   });
 
   it('toggles editor visibility via Ctrl+E keyboard shortcut (US-3.2)', () => {
