@@ -110,4 +110,26 @@ describe('App Component — Epics 1, 2, 3 Integration Tests', () => {
     // Web speech speak called
     expect(window.speechSynthesis.speak).toHaveBeenCalled();
   });
+
+  it('renders draggable SplitDivider when editor is visible and hides it when collapsed (Issue 2 & 3)', () => {
+    render(<App />);
+
+    // Initially editor is visible -> SplitDivider should be rendered
+    const divider = screen.getByTestId('split-divider');
+    expect(divider).toBeInTheDocument();
+
+    const editorContainer = screen.getByTestId('editor-pane-container');
+    const previewContainer = screen.getByTestId('preview-pane-container');
+
+    // Panes have percentage widths applied
+    expect(editorContainer).toHaveStyle({ width: '50%' });
+    expect(previewContainer).toHaveStyle({ width: '50%' });
+
+    // Hide editor
+    const toggleBtn = screen.getByRole('button', { name: /hide code/i });
+    fireEvent.click(toggleBtn);
+
+    // SplitDivider should now be hidden
+    expect(screen.queryByTestId('split-divider')).not.toBeInTheDocument();
+  });
 });

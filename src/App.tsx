@@ -5,6 +5,7 @@ import { TopBar } from './components/TopBar';
 import { MarkdownEditor } from './components/MarkdownEditor';
 import { MarkdownPreview } from './components/MarkdownPreview';
 import { ReadAloudBar } from './components/ReadAloudBar';
+import { SplitDivider } from './components/SplitDivider';
 import { calculateReadingStats } from './utils/readingStats';
 import { extractSpeechChunksFromElement, SpeechChunk } from './utils/textChunker';
 import { copyToClipboard, downloadMarkdownFile } from './utils/exportUtils';
@@ -27,12 +28,14 @@ export default function App() {
   );
   const [ttsRate, setTtsRate] = useLocalStorage<number>('markread_tts_rate', 1.0);
   const [ttsVoice, setTtsVoice] = useLocalStorage<string | null>('markread_tts_voice', null);
+  const [splitRatio, setSplitRatio] = useLocalStorage<number>('markread_split_ratio', 50);
 
   const [showEditor, setShowEditor] = useState<boolean>(true);
   const [mobileTab, setMobileTab] = useState<'preview' | 'editor'>('preview');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const articleRef = useRef<HTMLElement>(null);
+  const workspaceContainerRef = useRef<HTMLDivElement>(null);
   const [speechChunks, setSpeechChunks] = useState<SpeechChunk[]>([]);
 
   // Apply theme class to HTML root element
@@ -171,8 +174,8 @@ export default function App() {
         onChangeMobileTab={setMobileTab}
       />
 
-      {/* Main Workspace Container */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto p-3 md:p-6 pb-24 md:pb-28 flex flex-col relative overflow-hidden">
+      {/* Main Fluid Workspace Container */}
+      <main className="flex-1 w-full h-[calc(100vh-56px)] flex flex-col p-2 md:p-3 pb-20 md:pb-24 overflow-hidden relative">
         {/* Subtle Toast Pill */}
         {toastMessage && (
           <div
@@ -184,18 +187,22 @@ export default function App() {
           </div>
         )}
 
-        {/* Content View Layout */}
-        <div className="flex-1 flex gap-6 min-h-[calc(100vh-170px)]">
+        {/* Dynamic Resizable Split-Pane Layout */}
+        <div
+          ref={workspaceContainerRef}
+          className="flex-1 flex w-full h-full overflow-hidden min-h-0"
+        >
           {/* Editor Pane (Strictly hidden on desktop when showEditor is false) */}
           <div
             data-testid="editor-pane-container"
-            className={`flex-1 transition-all duration-300 ${
+            style={{ width: showEditor ? `${splitRatio}%` : undefined }}
+            className={`h-full min-h-0 transition-[width] duration-75 overflow-hidden ${
               !showEditor
                 ? mobileTab === 'editor'
-                  ? 'flex md:hidden'
+                  ? 'w-full flex md:hidden'
                   : 'hidden'
                 : mobileTab === 'editor'
-                ? 'flex'
+                ? 'w-full flex'
                 : 'hidden md:flex'
             }`}
           >
@@ -207,14 +214,26 @@ export default function App() {
             />
           </div>
 
+          {/* Draggable Split Divider (Desktop only when editor is shown) */}
+          {showEditor && (
+            <SplitDivider
+              splitRatio={splitRatio}
+              onRatioChange={setSplitRatio}
+              containerRef={workspaceContainerRef}
+            />
+          )}
+
           {/* Preview Pane (Always available on desktop; full-width or centered when editor is hidden) */}
           <div
             data-testid="preview-pane-container"
-            className={`flex-1 transition-all duration-300 ${
-              !showEditor ? 'max-w-3xl mx-auto' : ''
-            } ${mobileTab === 'preview' ? 'flex flex-col' : 'hidden md:flex md:flex-col'}`}
+            style={{
+              width: showEditor ? `${100 - splitRatio}%` : undefined,
+            }}
+            className={`h-full min-h-0 flex flex-col transition-[width] duration-75 overflow-hidden ${
+              !showEditor ? 'flex-1 max-w-3xl mx-auto w-full' : 'flex-1 min-w-0'
+            } ${mobileTab === 'preview' ? 'flex' : 'hidden md:flex'}`}
           >
-            <div className="bg-surface border border-borderSubtle rounded-lg p-5 md:p-8 flex-1 overflow-y-auto shadow-sm">
+            <div className="bg-surface border border-borderSubtle rounded-lg p-4 md:p-8 flex-1 h-full overflow-y-auto shadow-sm">
               <MarkdownPreview
                 ref={articleRef}
                 content={content}
