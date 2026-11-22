@@ -1,7 +1,7 @@
 # UI Bug Report & Enhancement Plan — MarkRead Live
 
 **Date:** November 23, 2026  
-**Status:** In Progress 🟡  
+**Status:** Resolved ✅  
 **Branch:** `dev`  
 **Reference Screenshot:** User report (`media_1795372346986_53a5d6da.jpg`)
 
@@ -10,17 +10,17 @@
 ## 1. Executive Summary & Screenshot Analysis
 
 Based on the screenshot submitted from local testing:
-1. **Editor Visibility Mismatch:** The top bar button indicates `</> Show Code Ctrl+E` (meaning `showEditor` state is `false`), yet the raw Markdown editor pane on the left remains rendered and visible on screen.
-2. **Missing Draggable Divider:** The divider between the Editor pane and the Preview pane is a static empty gap. Users cannot drag to adjust the width of the editor vs. preview.
-3. **Improper Viewport Space Scaling:** The layout does not fluidly adapt to the available screen space. The editor text is constrained and the height/width does not maximize the available viewport cleanly.
+1. **Editor Visibility Mismatch:** The top bar button indicated `</> Show Code Ctrl+E` (meaning `showEditor` state was `false`), yet the raw Markdown editor pane on the left remained rendered and visible on screen.
+2. **Missing Draggable Divider:** The divider between the Editor pane and the Preview pane was a static empty gap. Users could not drag to adjust the width of the editor vs. preview.
+3. **Improper Viewport Space Scaling:** The layout did not fluidly adapt to the available screen space. The editor text was constrained and the height/width did not maximize the available viewport cleanly.
 
 ---
 
 ## 2. Issues Breakdown & Resolution Checklist
 
-### [ ] Issue 1: "Hide Code" button does not hide the code editor on desktop
+### [x] Issue 1: "Hide Code" button does not hide the code editor on desktop
 - **Severity:** High (Core UI defect)
-- **Observed Behavior:** Clicking "Hide Code" toggles the button text to "Show Code", but the editor pane remains visible on desktop viewports.
+- **Observed Behavior:** Clicking "Hide Code" toggled the button text to "Show Code", but the editor pane remained visible on desktop viewports.
 - **Root Cause:** In `src/App.tsx`, the editor pane wrapper combined two conflicting Tailwind utility strings:
   ```tsx
   className={`flex-1 transition-all duration-300 ${
@@ -29,50 +29,52 @@ Based on the screenshot submitted from local testing:
   ```
   When `showEditor === false` and `mobileTab === 'preview'`, the classes evaluated to:
   `flex-1 transition-all duration-300 hidden hidden md:flex`
-  Because Tailwind applies breakpoint utilities like `md:flex` (`@media (min-width: 768px) { display: flex; }`), it overrides `hidden` (`display: none;`) at desktop screen widths.
-- **Target Solution:**
-  Refactor layout display logic so that on desktop, `showEditor === false` strictly renders `hidden` (or `display: none`), and only displays `md:flex` when `showEditor === true`.
-- **Verification Plan:** Unit tests verifying that when `showEditor` is `false`, the editor element is either unmounted or has class `hidden` without `md:flex` collision, and is not visible.
+  Because Tailwind applies breakpoint utilities like `md:flex` (`@media (min-width: 768px) { display: flex; }`), it overrode `hidden` (`display: none;`) at desktop screen widths.
+- **Resolution:**
+  Refactored responsive visibility logic in `src/App.tsx` so that when `showEditor === false`, the editor container is strictly assigned `hidden` (or `flex md:hidden` on mobile) without any `md:flex` class. Clicking "Hide Code" immediately collapses the editor pane and centers the preview pane.
+- **Verification:** Unit tests in `src/App.test.tsx` assert that clicking "Hide Code" removes `md:flex` and applies `hidden`, hiding the editor pane cleanly.
+- **Commit:** `67ba407`
 
 ---
 
-### [ ] Issue 2: Middle bar between Editor and Preview is not draggable
+### [x] Issue 2: Middle bar between Editor and Preview is not draggable
 - **Severity:** High (Missing essential split-pane functionality)
-- **Observed Behavior:** The middle boundary between Editor and Preview is a static gap with no drag handle, preventing users from resizing the panes.
+- **Observed Behavior:** The middle boundary between Editor and Preview was a static gap with no drag handle, preventing users from resizing the panes.
 - **Root Cause:** App previously used a static flex gap (`gap-6`) without a resizable divider component or mouse/touch drag listeners.
-- **Target Solution:**
-  1. Build a reusable `SplitDivider` component with:
-     - Mouse down / mouse move / mouse up dragging support.
-     - Touch start / touch move / touch end support for touch screens.
-     - Visual hover states with `cursor-col-resize`, accent highlight on drag.
-     - Double-click to reset width back to default 50%.
-     - Keyboard accessibility (Left/Right arrow keys adjust ratio by 2%).
-     - Min/max clamp constraints (minimum 20% width, maximum 80% width) to prevent panes from collapsing inappropriately.
-  2. Persist the user's custom split ratio in `localStorage` under `markread_pane_ratio`.
-- **Verification Plan:** Unit tests for `SplitDivider` component testing drag events, ratio clamping, double-click reset, and keyboard navigation.
+- **Resolution:**
+  1. Created `src/components/SplitDivider.tsx` with:
+     - Global mouse (`mousemove` / `mouseup`) and touch (`touchmove` / `touchend`) event listeners.
+     - Clamped ratio boundaries between min 20% and max 80% to protect content readability.
+     - Central hairline accent divider with a grip icon grabber pill (`GripVertical`).
+     - Cursor styling (`cursor-col-resize`) and selection locking during drag.
+     - Double-click shortcut to immediately reset panes to equal 50% split.
+     - Keyboard accessibility: `role="separator"`, `tabIndex={0}`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, and arrow key increments (+/- 2%).
+  2. Persisted custom ratio in `localStorage` under `markread_split_ratio`.
+- **Verification:** Dedicated unit test suite in `src/components/SplitDivider.test.tsx` verifying mouse drag, touch drag, boundary clamping, double-click reset, and keyboard controls.
+- **Commit:** `a8ee69c`
 
 ---
 
-### [ ] Issue 3: Layout does not scale fluidly to available viewport space
+### [x] Issue 3: Layout does not scale fluidly to available viewport space
 - **Severity:** Medium (Ergonomics & responsive design)
 - **Observed Behavior:** The workspace was constrained inside a fixed `max-w-[1600px]` with static margins and fixed min-heights (`min-h-[calc(100vh-170px)]`), resulting in awkward whitespace and poor utilization of ultra-wide or laptop displays.
 - **Root Cause:** Outermost layout lacked a fluid full-height column layout (`h-[calc(100vh-56px)] flex-1 overflow-hidden`) with dynamic proportional percentage widths (`style={{ width: `${ratio}%` }}`).
-- **Target Solution:**
-  1. Make the main workspace container fill 100% of available viewport width and remaining vertical height cleanly:
-     - `h-[calc(100vh-56px)] w-full flex flex-col p-2 md:p-3 overflow-hidden`.
-  2. Apply dynamic percentage-based width to the editor and preview panes based on `splitRatio`:
-     - Editor: `style={{ width: `${splitRatio}%` }}`
-     - Preview: `style={{ width: `${100 - splitRatio}%` }}`
-  3. When editor is hidden, preview smoothly expands to full width or centered reading measure (`max-w-3xl mx-auto`).
-  4. Ensure each pane handles its own internal scrolling independently without viewport-level scrollbar double jumps.
-- **Verification Plan:** Unit tests and responsive layout checks verifying container fluid sizing and percentage calculations.
+- **Resolution:**
+  1. Updated the main workspace container to fill 100% of available viewport width and height:
+     `h-[calc(100vh-56px)] w-full flex flex-col p-2 md:p-3 pb-20 md:pb-24 overflow-hidden relative`
+  2. Applied dynamic proportional widths:
+     - Editor: `style={{ width: showEditor ? `${splitRatio}%` : undefined }}`
+     - Preview: `style={{ width: showEditor ? `${100 - splitRatio}%` : undefined }}`
+  3. When editor is hidden, preview centers cleanly at `max-w-3xl mx-auto w-full`.
+  4. Both Editor and Preview panes have independent vertical scrollbars (`overflow-y-auto`) with no double page-level scrollbars.
+- **Verification:** Integration tests in `src/App.test.tsx` assert dynamic style width percentages and proper divider mounting.
+- **Commit:** `0062133`
 
 ---
 
-## 3. Implementation Steps & Commit Plan
+## 3. Test & Build Verification Summary
 
-1. **Step 1:** Create `Docs/BUG_REPORT_UI.md` documenting all bugs, root causes, and planned fixes. *(Commit)*
-2. **Step 2:** Fix Issue 1 (CSS display collision for Show/Hide Code) + unit tests. *(Commit)*
-3. **Step 3:** Implement Issue 2 (`SplitDivider` draggable pane component + ratio persistence) + unit tests. *(Commit)*
-4. **Step 4:** Implement Issue 3 (Fluid full-viewport scaling and responsive dimensions) + unit tests. *(Commit)*
-5. **Step 5:** Update `Docs/BUG_REPORT_UI.md` with resolved checklist markers `[x]` and final test verification report. *(Commit)*
+- **Total Test Suites:** 16 files passed
+- **Total Unit Tests:** 67 passed (100%)
+- **Production Build (`npm run build`):** Succeeded with 0 errors
+- **Initial Bundle Size:** 77.44 kB gzipped (Budget: < 120 kB)
