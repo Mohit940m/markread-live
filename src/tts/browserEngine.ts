@@ -86,10 +86,6 @@ export class BrowserTTSEngine implements TTSEngine {
   name = 'Smart Browser Speech';
   isReady = true;
 
-  private currentUtterance: SpeechSynthesisUtterance | null = null;
-  private currentOptions: SpeakOptions | null = null;
-  private paused = false;
-
   async init(): Promise<void> {
     this.isReady = typeof window !== 'undefined' && 'speechSynthesis' in window;
   }
@@ -108,11 +104,8 @@ export class BrowserTTSEngine implements TTSEngine {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
     window.speechSynthesis.cancel();
-    this.paused = false;
-    this.currentOptions = options;
 
     const utterance = new SpeechSynthesisUtterance(chunk.text);
-    this.currentUtterance = utterance;
 
     if (options.rate !== undefined) utterance.rate = options.rate;
     if (options.pitch !== undefined) utterance.pitch = options.pitch;
@@ -130,7 +123,6 @@ export class BrowserTTSEngine implements TTSEngine {
     };
 
     utterance.onend = () => {
-      this.currentUtterance = null;
       options.onEnd?.();
     };
 
@@ -147,20 +139,16 @@ export class BrowserTTSEngine implements TTSEngine {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       // Android Chrome bug fix: cancel rather than pause, preserving chunk index in state
       window.speechSynthesis.cancel();
-      this.paused = true;
     }
   }
 
   resume(): void {
-    this.paused = false;
+    // Resume is handled at player level by re-invoking speakChunk from currentChunkIndex
   }
 
   stop(): void {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
-      this.currentUtterance = null;
-      this.currentOptions = null;
-      this.paused = false;
     }
   }
 }

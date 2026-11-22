@@ -2,7 +2,7 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useVoicePlayer } from './useVoicePlayer';
 import { SpeechChunk } from '../utils/textChunker';
-import { TTSEngine, VoiceOption } from '../tts/types';
+import { TTSEngine } from '../tts/types';
 
 describe('useVoicePlayer Unified Hook (NV-1.3)', () => {
   const sampleChunks: SpeechChunk[] = [
