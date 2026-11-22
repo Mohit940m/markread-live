@@ -7,6 +7,7 @@ import { MarkdownPreview } from './components/MarkdownPreview';
 import { ReadAloudBar } from './components/ReadAloudBar';
 import { calculateReadingStats } from './utils/readingStats';
 import { extractSpeechChunksFromElement, SpeechChunk } from './utils/textChunker';
+import { copyToClipboard, downloadMarkdownFile } from './utils/exportUtils';
 import { DEFAULT_SAMPLE_MARKDOWN } from './utils/sampleMarkdown';
 import { Eye } from 'lucide-react';
 
@@ -134,27 +135,15 @@ export default function App() {
 
   // Copy Markdown utility
   const handleCopyMarkdown = useCallback(async () => {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(content);
-        setToastMessage('Markdown copied to clipboard!');
-      }
-    } catch (err) {
-      console.warn('Failed to copy markdown', err);
+    const success = await copyToClipboard(content);
+    if (success) {
+      setToastMessage('Markdown copied to clipboard!');
     }
   }, [content]);
 
   // Download Markdown utility
   const handleDownloadMarkdown = useCallback(() => {
-    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'document.md';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadMarkdownFile(content, 'document.md');
     setToastMessage('Document downloaded as document.md');
   }, [content]);
 
