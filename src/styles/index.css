@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Eye-Comfort Dark Theme Palette (Default) */
+  --bg-canvas: #0F1117;
+  --bg-surface: #161B22;
+  --bg-elevated: #1E2530;
+  --border-subtle: #2A3241;
+  --text-primary: #E2E8F0;
+  --text-muted: #94A3B8;
+  --accent: #38BDF8;
+}
+
+html.light {
+  /* Clean high-contrast soft daylight palette */
+  --bg-canvas: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #F1F5F9;
+  --border-subtle: #E2E8F0;
+  --text-primary: #0F172A;
+  --text-muted: #64748B;
+  --accent: #0284C7;
+}
+
+html.dark {
+  --bg-canvas: #0F1117;
+  --bg-surface: #161B22;
+  --bg-elevated: #1E2530;
+  --border-subtle: #2A3241;
+  --text-primary: #E2E8F0;
+  --text-muted: #94A3B8;
+  --accent: #38BDF8;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--border-subtle);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-muted);
+}
+
+/* Custom highlight styling for code blocks */
+pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 1rem;
+}
+
+.hljs {
+  color: #c9d1d9;
+  background: transparent;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst {
+  color: #ff7b72;
+}
+
+.hljs-string,
+.hljs-title,
+.hljs-section,
+.hljs-attribute,
+.hljs-literal,
+.hljs-template-tag,
+.hljs-template-variable,
+.hljs-type,
+.hljs-addition {
+  color: #a5d6ff;
+}
+
+.hljs-comment,
+.hljs-quote,
+.hljs-deletion,
+.hljs-meta {
+  color: #8b949e;
+  font-style: italic;
+}
+
+.hljs-number,
+.hljs-regexp,
+.hljs-link {
+  color: #79c0ff;
+}
+
+.hljs-variable,
+.hljs-symbol,
+.hljs-bullet {
+  color: #ffa657;
+}
+
+.hljs-function {
+  color: #d2a8ff;
+}
+
+/* Active TTS speech block highlight */
+.tts-active-block {
+  background-color: rgba(56, 189, 248, 0.08);
+  border-left: 3px solid #38BDF8;
+  padding-left: 0.75rem;
+  border-radius: 0 0.375rem 0.375rem 0;
+  transition: all 0.25s ease-in-out;
+}
