@@ -103,11 +103,18 @@ export function useVoicePlayer({
       const combined = [...pVoices, ...bVoices, ...gVoices];
       setVoices(combined);
 
-      // Prefer browser smart-ranked natural voice on first visit (zero downloads needed out of the box)
+      // Prefer browser smart-ranked English UK Male natural voice on first visit (zero downloads needed out of the box)
       if (combined.length > 0) {
         const found = combined.find((v) => v.id === selectedVoiceId);
         if (!found) {
-          const naturalBrowserDefault = bVoices.find((v) => v.quality === 'natural') || bVoices[0];
+          const ukMale = bVoices.find(
+            (v) =>
+              (v.name.toLowerCase().includes('uk english male') ||
+                ((v.lang.toLowerCase().includes('en-gb') || v.lang.toLowerCase().includes('en_gb')) &&
+                  v.gender === 'male')) &&
+              v.quality === 'natural'
+          );
+          const naturalBrowserDefault = ukMale || bVoices.find((v) => v.quality === 'natural') || bVoices[0];
           const chosen = naturalBrowserDefault || combined[0];
           setSelectedVoiceId(chosen.id);
           setSelectedEngineId(chosen.engine);

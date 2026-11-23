@@ -97,13 +97,49 @@ Based on the screenshot submitted from local testing:
   2. Added `w-full h-full flex-1 min-h-0 flex flex-col` to `MarkdownEditor.tsx`.
   3. Added `shrink-0` to the editor sub-toolbar and `flex-1 h-full min-h-0 w-full overflow-y-auto` to the `<textarea>`.
 - **Verification:** Unit tests in `src/components/MarkdownEditor.test.tsx` and `src/App.test.tsx` assert `md:flex-col` on editor-pane-container and `w-full h-full flex-1 min-h-0` on editor container and textarea.
-- **Commit:** `c279e8a` (current step)
+- **Commit:** `8047da5`
+
+---
+
+### [x] Issue 6: Non-English browser voice defaulting at start instead of English UK Male
+- **Severity:** High (TTS default quality & localization defect)
+- **Observed Behavior:** As shown in screenshot `media_1795459459006_886e425f.jpg`, the Voice Manager listed `Google português do Brasil [Natural]` at the very top of Instant Browser Voices, causing non-English speech to play by default at start.
+- **Root Cause:** In `src/tts/browserEngine.ts`, `classifyVoiceQuality` gave all Google voices a flat score of 90 regardless of language. The array was then sorted alphabetically, causing `Google português do Brasil` to precede `Google UK English` and `Google US English`.
+- **Resolution:**
+  1. Updated `classifyVoiceQuality` with language & accent awareness:
+     - Priority 1 (Score 1000): **English UK Male Natural** (`Google UK English Male` / `en-GB` male natural)
+     - Priority 2 (Score 900): Other English UK Natural voices (`Google UK English Female`)
+     - Priority 3 (Score 800): English US Natural voices (`Google US English`)
+     - Priority 4 (Score 700): Other English Natural voices (`en-IN`, `en-AU`, etc.)
+     - Priority 5 (Score 500): English Enhanced / Siri voices
+     - Priority 6 (Score 300): English Standard voices
+     - Priority 7 (Score 100): Non-English Natural/Google voices
+     - Priority 8 (Score 20): Non-English Standard voices
+  2. In `src/hooks/useVoicePlayer.ts`, explicitly prioritized English UK Male natural voice as the default active voice selection on start.
+- **Verification:** Unit tests in `src/tts/browserEngine.test.ts` verify `Google UK English Male` ranks at position #1 ahead of `Google UK English Female`, `Google US English`, and non-English Google voices.
+- **Commit:** Pending
+
+---
+
+### [x] Issue 7: Editor vertical height collapsed with large empty space below on desktop
+- **Severity:** High (Layout & responsiveness defect)
+- **Observed Behavior:** As shown in screenshot `media_1795459622882_051da0f2.jpg`, the Markdown editor container stopped after 3 lines of text, leaving an enormous empty black space below it while the preview pane correctly stretched to the bottom.
+- **Root Cause:** In flex row layouts without an explicit pixel height on ancestors, percentage `height: 100%` on child flex items resolved to `height: auto` in Chromium. The editor container lacked `self-stretch`, and the inner textarea lacked explicit inline `height: 100%` / `minHeight: 100%`.
+- **Resolution:**
+  1. Applied `items-stretch` and `style={{ height: '100%' }}` on `workspaceContainerRef`.
+  2. Applied `self-stretch`, `flex flex-col`, and `style={{ height: '100%' }}` on `editor-pane-container`.
+  3. Applied `self-stretch`, `style={{ height: '100%' }}` on `markdown-editor-container`.
+  4. Applied `style={{ height: '100%', minHeight: '100%' }}` on `<textarea>`.
+  5. Ensured `html`, `body`, and `#root` have `h-full flex flex-col`.
+  6. Verified clicking "Hide Code" strictly hides the editor pane via `hidden` (`display: none`).
+- **Verification:** Unit tests in `src/components/MarkdownEditor.test.tsx` and `src/App.test.tsx` assert `height: 100%` styles and clean hide/show toggles.
+- **Commit:** Pending
 
 ---
 
 ## 3. Test & Build Verification Summary
 
-- **Total Test Suites:** 16 files passed
-- **Total Unit Tests:** 69 passed (100%)
+- **Total Test Suites:** 23 files passed
+- **Total Unit Tests:** 98 passed (100%)
 - **Production Build (`npm run build`):** Succeeded with 0 errors
-- **Initial Bundle Size:** 78.65 kB gzipped (Budget: < 120 kB)
+- **Initial Bundle Size:** 86.72 kB gzipped (Budget: < 120 kB)

@@ -16,6 +16,8 @@ describe('MarkdownEditor Component (US-2.3)', () => {
     expect(container.className).toContain('h-full');
     expect(container.className).toContain('w-full');
     expect(container.className).toContain('flex-1');
+    expect(container).toHaveStyle({ height: '100%' });
+    expect(textarea).toHaveStyle({ height: '100%' });
   });
 
   it('triggers onChange when user types in textarea', () => {

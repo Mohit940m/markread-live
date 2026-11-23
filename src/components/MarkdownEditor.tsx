@@ -90,10 +90,11 @@ export const MarkdownEditor: FC<MarkdownEditorProps> = ({
   return (
     <div
       data-testid="markdown-editor-container"
+      style={{ height: '100%' }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative flex flex-col flex-1 h-full w-full min-h-0 bg-surface border border-borderSubtle rounded-lg overflow-hidden transition-all ${
+      className={`relative flex flex-col flex-1 h-full w-full min-h-0 self-stretch bg-surface border border-borderSubtle rounded-lg overflow-hidden transition-all ${
         isDragging ? 'ring-2 ring-accent ring-inset bg-accent/5' : ''
       }`}
     >
@@ -162,6 +163,7 @@ export const MarkdownEditor: FC<MarkdownEditorProps> = ({
         placeholder="Type or paste Markdown here, or drop a .md file..."
         data-testid="markdown-textarea"
         spellCheck="false"
+        style={{ height: '100%', minHeight: '100%' }}
         className="flex-1 h-full min-h-0 w-full p-4 bg-transparent text-textPrimary font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder:text-textMuted/50 overflow-y-auto"
       />
     </div>
