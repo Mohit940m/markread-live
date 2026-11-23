@@ -74,4 +74,12 @@ describe('TopBar Component (US-3.2, US-3.3, US-3.4)', () => {
     fireEvent.click(fullWidthBtn);
     expect(handleToggle).toHaveBeenCalledTimes(1);
   });
+
+  it('renders GitHub star link with correct repository URL', () => {
+    render(<TopBar {...defaultProps} />);
+    const githubLink = screen.getByRole('link', { name: /star on github/i });
+    expect(githubLink).toBeInTheDocument();
+    expect(githubLink).toHaveAttribute('href', 'https://github.com/Mohit940m/markread-live');
+    expect(githubLink).toHaveAttribute('target', '_blank');
+  });
 });

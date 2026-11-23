@@ -10,6 +10,7 @@ import {
   Sparkles,
   Maximize2,
   Minimize2,
+  Star,
 } from 'lucide-react';
 import { ReadingStats } from '../utils/readingStats';
 
@@ -223,6 +224,18 @@ export const TopBar: FC<TopBarProps> = ({
             <Moon className="w-4 h-4 text-sky-600" />
           )}
         </button>
+
+        {/* GitHub Repository Star Link */}
+        <a
+          href="https://github.com/Mohit940m/markread-live"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Star Mohit940m/markread-live on GitHub"
+          aria-label="Star on GitHub"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg bg-elevated hover:bg-borderSubtle text-textMuted hover:text-amber-400 border border-borderSubtle transition-colors"
+        >
+          <Star className="w-4 h-4 text-amber-400 fill-amber-400/20" />
+        </a>
       </div>
     </header>
   );
