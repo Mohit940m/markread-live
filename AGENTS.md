@@ -26,3 +26,10 @@
 ## Performance & Bundle Budgets
 - Use tree-shakeable packages: `react-markdown`, `remark-gfm`, subset of `rehype-highlight` languages, `lucide-react`.
 - Initial JS bundle target: `< 120 KB` gzipped. Code-split heavy syntax highlighting or non-critical components.
+
+## Natural Voice Upgrade Rules
+- Keep the initial JS bundle lightweight: lazy-load `@mintplex-labs/piper-tts-web` and `kokoro-js` ONLY inside Web Workers or on user interaction.
+- Never block the main UI thread during TTS synthesis — always run ONNX/WASM inference inside a dedicated Web Worker.
+- Always revoke `URL.createObjectURL(...)` audio blobs after playback or unmount to prevent mobile memory leaks.
+- Keep Tier 1 (Smart Ranked Web Speech API) working out of the box with zero downloads, and make Tier 2 (Piper Local Neural Voices) a one-click download cached in OPFS.
+- Preserve native right-click (`onContextMenu` untouched) at all times.

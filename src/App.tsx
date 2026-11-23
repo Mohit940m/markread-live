@@ -1,0 +1,374 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocalStorage } from './hooks/useLocalStorage';
+import { useVoicePlayer } from './hooks/useVoicePlayer';
+import { TopBar } from './components/TopBar';
+import { MarkdownEditor } from './components/MarkdownEditor';
+import { MarkdownPreview } from './components/MarkdownPreview';
+import { ReadAloudBar } from './components/ReadAloudBar';
+import { VoiceManagerDrawer } from './components/VoiceManagerDrawer';
+import { SplitDivider } from './components/SplitDivider';
+import { calculateReadingStats } from './utils/readingStats';
+import { extractSpeechChunksFromElement, SpeechChunk } from './utils/textChunker';
+import { copyToClipboard, downloadMarkdownFile } from './utils/exportUtils';
+import { DEFAULT_SAMPLE_MARKDOWN } from './utils/sampleMarkdown';
+import { Eye, AlertCircle } from 'lucide-react';
+
+export default function App() {
+  const [content, setContent] = useLocalStorage<string>(
+    'markread_content',
+    DEFAULT_SAMPLE_MARKDOWN
+  );
+  const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('markread_theme', 'dark');
+  const [autoHideOnPaste, setAutoHideOnPaste] = useLocalStorage<boolean>(
+    'markread_autohide',
+    true
+  );
+  const [fontSize, setFontSize] = useLocalStorage<'sm' | 'base' | 'lg'>(
+    'markread_fontsize',
+    'base'
+  );
+  const [splitRatio, setSplitRatio] = useLocalStorage<number>('markread_split_ratio', 50);
+  const [fullWidth, setFullWidth] = useLocalStorage<boolean>('markread_full_width', false);
+
+  const [showEditor, setShowEditor] = useState<boolean>(true);
+  const [mobileTab, setMobileTab] = useState<'preview' | 'editor'>('preview');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const articleRef = useRef<HTMLElement>(null);
+  const workspaceContainerRef = useRef<HTMLDivElement>(null);
+  const [speechChunks, setSpeechChunks] = useState<SpeechChunk[]>([]);
+
+  // Apply theme class to HTML root element
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else {
+      root.classList.add('light');
+      root.classList.remove('dark');
+    }
+  }, [theme]);
+
+  // Extract speech chunks whenever rendered content updates
+  useEffect(() => {
+    if (articleRef.current) {
+      const chunks = extractSpeechChunksFromElement(articleRef.current, {
+        maxChars: 220,
+        skipCodeBlocks: true,
+      });
+      setSpeechChunks(chunks);
+    }
+  }, [content]);
+
+  // Unified Multi-Engine Voice Player Hook (NV-1 to NV-4)
+  const {
+    status: ttsStatus,
+    currentChunkIndex,
+    voices,
+    selectedVoiceId,
+    selectVoice,
+    rate: ttsRate,
+    setRate: setTtsRate,
+    fallbackNotice,
+    setFallbackNotice,
+    isVoiceManagerOpen,
+    setIsVoiceManagerOpen,
+    isExportingAudio,
+    exportProgress,
+    exportNarrationAsWav,
+    piperEngine,
+    googleByokEngine,
+    play: playTTS,
+    pause: pauseTTS,
+    resume: resumeTTS,
+    stop: stopTTS,
+    next: nextTTS,
+    prev: prevTTS,
+    seek: seekTTS,
+  } = useVoicePlayer({
+    chunks: speechChunks,
+    onChunkChange: (_index, chunk) => {
+      if (!articleRef.current) return;
+
+      // Clear previous active highlights
+      articleRef.current.querySelectorAll('.tts-active-block').forEach((el) => {
+        el.classList.remove('tts-active-block');
+      });
+
+      if (chunk && chunk.blockIndex !== undefined) {
+        const activeEl = articleRef.current.querySelector(
+          `[data-block-index="${chunk.blockIndex}"]`
+        );
+        if (activeEl) {
+          activeEl.classList.add('tts-active-block');
+          activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    },
+  });
+
+  // Handle toast notification auto-dismissal
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
+
+  // Handle auto-hide trigger on paste or file load
+  const triggerAutoHide = useCallback(
+    (incomingText: string) => {
+      if (!autoHideOnPaste) return;
+
+      const isLongEnough = incomingText.length >= 40 || incomingText.includes('\n');
+      if (isLongEnough) {
+        setTimeout(() => {
+          setShowEditor(false);
+          setMobileTab('preview');
+          setToastMessage('Code hidden — click Show Code (Ctrl+E) to edit');
+        }, 150);
+      }
+    },
+    [autoHideOnPaste]
+  );
+
+  // Handle Ctrl/Cmd + E shortcut for toggling code editor
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        setShowEditor((prev) => !prev);
+        setMobileTab((prev) => (prev === 'editor' ? 'preview' : 'editor'));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Copy Markdown utility
+  const handleCopyMarkdown = useCallback(async () => {
+    const success = await copyToClipboard(content);
+    if (success) {
+      setToastMessage('Markdown copied to clipboard!');
+    }
+  }, [content]);
+
+  // Download Markdown utility
+  const handleDownloadMarkdown = useCallback(() => {
+    downloadMarkdownFile(content, 'document.md');
+    setToastMessage('Document downloaded as document.md');
+  }, [content]);
+
+  // NV-4.3: Export Narrated Document as WAV audio file
+  const handleExportAudio = useCallback(async () => {
+    setToastMessage('Synthesizing narration audio...');
+    const wavBlob = await exportNarrationAsWav();
+    if (wavBlob) {
+      const url = URL.createObjectURL(wavBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'document-narration.wav';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setToastMessage('Audio narration exported as document-narration.wav');
+    } else {
+      setToastMessage('Audio export failed');
+    }
+  }, [exportNarrationAsWav]);
+
+  // NV-4.2: Click paragraph/header to read from here
+  const handleArticleClick = useCallback(
+    (e: React.MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('a') || target.closest('button')) {
+        return;
+      }
+      const blockEl = target.closest('[data-block-index]');
+      if (blockEl) {
+        const blockIndexStr = blockEl.getAttribute('data-block-index');
+        if (blockIndexStr !== null) {
+          const blockIdx = parseInt(blockIndexStr, 10);
+          const targetChunkIdx = speechChunks.findIndex((c) => c.blockIndex === blockIdx);
+          if (targetChunkIdx !== -1) {
+            seekTTS(targetChunkIdx);
+            playTTS(targetChunkIdx);
+          }
+        }
+      }
+    },
+    [speechChunks, seekTTS, playTTS]
+  );
+
+  const stats = calculateReadingStats(content);
+
+  return (
+    <div className="min-h-screen bg-canvas text-textPrimary flex flex-col font-sans transition-colors duration-200">
+      {/* Top Header Toolbar */}
+      <TopBar
+        showEditor={showEditor}
+        onToggleEditor={() => {
+          setShowEditor((prev) => !prev);
+          setMobileTab((prev) => (prev === 'editor' ? 'preview' : 'editor'));
+        }}
+        autoHideOnPaste={autoHideOnPaste}
+        onToggleAutoHide={() => setAutoHideOnPaste((prev) => !prev)}
+        theme={theme}
+        onToggleTheme={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+        fontSize={fontSize}
+        onChangeFontSize={setFontSize}
+        stats={stats}
+        onCopyMarkdown={handleCopyMarkdown}
+        onDownloadMarkdown={handleDownloadMarkdown}
+        activeMobileTab={mobileTab}
+        onChangeMobileTab={setMobileTab}
+        fullWidth={fullWidth}
+        onToggleFullWidth={() => {
+          setFullWidth((prev) => !prev);
+          setToastMessage(
+            !fullWidth
+              ? 'Switched to Full Width mode'
+              : 'Switched to Centered Reading mode'
+          );
+        }}
+      />
+
+      {/* Main Fluid Workspace Container */}
+      <main className="flex-1 w-full h-[calc(100vh-56px)] flex flex-col p-2 md:p-3 pb-20 md:pb-24 overflow-hidden relative">
+        {/* Subtle Toast Pill */}
+        {toastMessage && (
+          <div
+            role="status"
+            className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-surface/95 border border-accent/40 text-accent text-xs font-medium shadow-lg backdrop-blur flex items-center gap-2 animate-fade-in"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+
+        {/* Fallback Notice Banner */}
+        {fallbackNotice && (
+          <div
+            role="alert"
+            className="mb-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>{fallbackNotice}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFallbackNotice(null)}
+              className="text-amber-400 hover:text-amber-200 font-bold px-1.5"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* Dynamic Resizable Split-Pane Layout */}
+        <div
+          ref={workspaceContainerRef}
+          className="flex-1 flex w-full h-full overflow-hidden min-h-0"
+        >
+          {/* Editor Pane (Strictly hidden on desktop when showEditor is false) */}
+          <div
+            data-testid="editor-pane-container"
+            style={{ width: showEditor ? `${splitRatio}%` : undefined }}
+            className={`h-full min-h-0 flex-col transition-[width] duration-75 overflow-hidden ${
+              !showEditor
+                ? mobileTab === 'editor'
+                  ? 'w-full flex md:hidden'
+                  : 'hidden'
+                : mobileTab === 'editor'
+                ? 'w-full flex flex-col'
+                : 'hidden md:flex md:flex-col'
+            }`}
+          >
+            <MarkdownEditor
+              value={content}
+              onChange={setContent}
+              onPasteMarkdown={triggerAutoHide}
+              onFileLoaded={() => triggerAutoHide(content)}
+            />
+          </div>
+
+          {/* Draggable Split Divider (Desktop only when editor is shown) */}
+          {showEditor && (
+            <SplitDivider
+              splitRatio={splitRatio}
+              onRatioChange={setSplitRatio}
+              containerRef={workspaceContainerRef}
+            />
+          )}
+
+          {/* Preview Pane (Always available on desktop; full-width or centered when editor is hidden) */}
+          <div
+            data-testid="preview-pane-container"
+            style={{
+              width: showEditor ? `${100 - splitRatio}%` : undefined,
+            }}
+            className={`h-full min-h-0 flex flex-col transition-[width] duration-75 overflow-hidden ${
+              !showEditor
+                ? fullWidth
+                  ? 'flex-1 w-full max-w-none'
+                  : 'flex-1 max-w-3xl mx-auto w-full'
+                : 'flex-1 min-w-0'
+            } ${mobileTab === 'preview' ? 'flex' : 'hidden md:flex'}`}
+          >
+            <div
+              className="bg-surface border border-borderSubtle rounded-lg p-4 md:p-8 flex-1 h-full overflow-y-auto shadow-sm"
+              onClick={handleArticleClick}
+            >
+              <MarkdownPreview
+                ref={articleRef}
+                content={content}
+                fontSize={fontSize}
+              />
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Floating Read Aloud Control Bar */}
+      <ReadAloudBar
+        status={ttsStatus}
+        currentChunkIndex={currentChunkIndex}
+        totalChunks={speechChunks.length}
+        onPlay={playTTS}
+        onPause={pauseTTS}
+        onResume={resumeTTS}
+        onStop={stopTTS}
+        onNext={nextTTS}
+        onPrev={prevTTS}
+        rate={ttsRate}
+        onChangeRate={setTtsRate}
+        voices={voices}
+        selectedVoiceURI={selectedVoiceId}
+        onChangeVoice={(id) => {
+          const match = voices.find((v) => v.id === id);
+          if (match) selectVoice(match);
+        }}
+        onOpenVoiceManager={() => setIsVoiceManagerOpen(true)}
+        onExportAudio={handleExportAudio}
+        isExportingAudio={isExportingAudio}
+        exportProgress={exportProgress}
+      />
+
+      {/* Voice Manager Slide-Over Drawer */}
+      <VoiceManagerDrawer
+        isOpen={isVoiceManagerOpen}
+        onClose={() => setIsVoiceManagerOpen(false)}
+        selectedVoiceId={selectedVoiceId}
+        onSelectVoice={selectVoice}
+        browserVoices={voices.filter((v) => v.engine === 'browser')}
+        piperEngine={piperEngine}
+        googleByokEngine={googleByokEngine}
+      />
+    </div>
+  );
+}
