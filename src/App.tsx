@@ -273,13 +273,14 @@ export default function App() {
         {/* Dynamic Resizable Split-Pane Layout */}
         <div
           ref={workspaceContainerRef}
-          className="flex-1 flex w-full h-full overflow-hidden min-h-0"
+          style={{ height: '100%' }}
+          className="flex-1 flex w-full h-full min-h-0 items-stretch overflow-hidden"
         >
           {/* Editor Pane (Strictly hidden on desktop when showEditor is false) */}
           <div
             data-testid="editor-pane-container"
-            style={{ width: showEditor ? `${splitRatio}%` : undefined }}
-            className={`h-full min-h-0 flex-col transition-[width] duration-75 overflow-hidden ${
+            style={{ width: showEditor ? `${splitRatio}%` : undefined, height: '100%' }}
+            className={`h-full min-h-0 flex flex-col self-stretch transition-[width] duration-75 overflow-hidden ${
               !showEditor
                 ? mobileTab === 'editor'
                   ? 'w-full flex md:hidden'

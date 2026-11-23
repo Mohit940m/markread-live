@@ -34,22 +34,32 @@ describe('Smart Browser Voice Ranking & Engine (NV-1.1 & NV-1.2)', () => {
     expect(classifyVoiceQuality(legacyVoice).quality).toBe('standard');
   });
 
-  it('ranks natural and Google voices above legacy OS synthesizers in list', () => {
+  it('ranks English UK Male at the top of the list above other English and non-English voices', () => {
     const voices = [
-      createMockVoice('Microsoft David Desktop', 'david'),
-      createMockVoice('Microsoft Jenny Online (Natural)', 'jenny-nat'),
-      createMockVoice('Google US English', 'google-us'),
-      createMockVoice('eSpeak English', 'espeak'),
+      createMockVoice('Google português do Brasil', 'google-pt', 'pt-BR'),
+      createMockVoice('Google US English', 'google-us', 'en-US'),
+      createMockVoice('Google UK English Female', 'google-uk-f', 'en-GB'),
+      createMockVoice('Google UK English Male', 'google-uk-m', 'en-GB'),
+      createMockVoice('Microsoft David Desktop', 'david', 'en-US'),
     ];
 
     const ranked = rankBrowserVoices(voices);
 
-    expect(ranked[0].name).toContain('Natural');
-    expect(ranked[1].name).toContain('Google');
+    // Google UK English Male must be at the very top (Rank #1)
+    expect(ranked[0].name).toBe('Google UK English Male');
+    expect(ranked[0].gender).toBe('male');
+    expect(ranked[0].accent).toBe('UK English');
     expect(ranked[0].quality).toBe('natural');
-    expect(ranked[1].quality).toBe('natural');
-    expect(ranked[2].quality).toBe('standard');
-    expect(ranked[3].quality).toBe('standard');
+
+    // Google UK English Female next
+    expect(ranked[1].name).toBe('Google UK English Female');
+
+    // Google US English next
+    expect(ranked[2].name).toBe('Google US English');
+
+    // Non-English Google Portuguese is pushed below all English voices
+    expect(ranked[3].name).toBe('Microsoft David Desktop');
+    expect(ranked[4].name).toBe('Google português do Brasil');
   });
 
   it('BrowserTTSEngine initializes and lists ranked voices', async () => {
