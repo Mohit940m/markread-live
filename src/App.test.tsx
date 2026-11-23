@@ -171,7 +171,7 @@ describe('App Component — Epics 1, 2, 3 Integration Tests', () => {
 
     // Drawer is now open
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Voice Manager')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Voice Manager' })).toBeInTheDocument();
 
     // Close drawer via close button
     const closeBtn = screen.getByRole('button', { name: /close voice manager/i });
