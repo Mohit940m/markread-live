@@ -196,4 +196,47 @@ describe('App Component — Epics 1, 2, 3 Integration Tests', () => {
       expect(window.speechSynthesis.speak).toHaveBeenCalled();
     }
   });
+
+  it('clicks nested list points without repeating sub-parts or double-triggering speak (Issue 8)', async () => {
+    render(<App />);
+
+    const textarea = screen.getByTestId('markdown-textarea');
+    const nestedMd = [
+      '1. Main point one',
+      '   - Sub point alpha',
+      '   - Sub point beta',
+      '2. Main point two',
+    ].join('\n');
+
+    act(() => {
+      fireEvent.change(textarea, { target: { value: nestedMd } });
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText('Main point one')).toBeInTheDocument();
+      expect(document.querySelector('[data-block-index="3"]')).not.toBeNull();
+    });
+
+    const speakMock = vi.mocked(window.speechSynthesis.speak);
+    speakMock.mockClear();
+
+    // Clicking the outer point should speak ONLY 'Main point one' once (not main + sub-parts)
+    const firstPoint = screen.getByText('Main point one');
+    act(() => {
+      fireEvent.click(firstPoint);
+    });
+
+    expect(speakMock).toHaveBeenCalledTimes(1);
+    expect(speakMock.mock.calls[0][0].text).toBe('Main point one');
+
+    // Clicking a sub-point while already playing should speak ONLY that sub-point once
+    speakMock.mockClear();
+    const subPointAlpha = screen.getByText('Sub point alpha');
+    act(() => {
+      fireEvent.click(subPointAlpha);
+    });
+
+    expect(speakMock).toHaveBeenCalledTimes(1);
+    expect(speakMock.mock.calls[0][0].text).toBe('Sub point alpha');
+  });
 });

@@ -85,7 +85,6 @@ export default function App() {
     stop: stopTTS,
     next: nextTTS,
     prev: prevTTS,
-    seek: seekTTS,
   } = useVoicePlayer({
     chunks: speechChunks,
     onChunkChange: (_index, chunk) => {
@@ -195,13 +194,12 @@ export default function App() {
           const blockIdx = parseInt(blockIndexStr, 10);
           const targetChunkIdx = speechChunks.findIndex((c) => c.blockIndex === blockIdx);
           if (targetChunkIdx !== -1) {
-            seekTTS(targetChunkIdx);
             playTTS(targetChunkIdx);
           }
         }
       }
     },
-    [speechChunks, seekTTS, playTTS]
+    [speechChunks, playTTS]
   );
 
   const stats = calculateReadingStats(content);

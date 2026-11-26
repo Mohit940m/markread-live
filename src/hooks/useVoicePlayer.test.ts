@@ -83,10 +83,72 @@ describe('useVoicePlayer Unified Hook (NV-1.3)', () => {
       );
     });
 
-    await vi.waitFor(() => {
+      await vi.waitFor(() => {
       expect(hookResult.result.current.selectedEngineId).toBe('browser');
       expect(hookResult.result.current.fallbackNotice).toContain('Falling back to Smart Browser Voice');
       expect(hookResult.result.current.voices.length).toBeGreaterThan(0);
     });
+  });
+
+  it('ignores stale onEnd callbacks when jumping to another chunk while playing (Issue 8)', async () => {
+    const callbacks: Record<number, { onStart?: () => void; onEnd?: () => void }> = {};
+    const mockEngine: TTSEngine = {
+      id: 'piper',
+      name: 'Mock Neural Engine',
+      isReady: true,
+      init: vi.fn().mockResolvedValue(undefined),
+      listVoices: vi.fn().mockResolvedValue([
+        {
+          id: 'mock-voice',
+          name: 'Mock Voice',
+          engine: 'piper',
+          lang: 'en-US',
+          tier: 2,
+          quality: 'natural',
+          isDownloaded: true,
+        },
+      ]),
+      speakChunk: vi.fn().mockImplementation(async (chunk, _voice, opts) => {
+        callbacks[chunk.index] = opts;
+        opts.onStart?.();
+      }),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      stop: vi.fn(),
+    };
+
+    const threeChunks: SpeechChunk[] = [
+      { index: 0, text: 'Chunk 0.', blockIndex: 0 },
+      { index: 1, text: 'Chunk 1.', blockIndex: 1 },
+      { index: 2, text: 'Chunk 2.', blockIndex: 2 },
+    ];
+
+    let hookResult: any;
+    await act(async () => {
+      hookResult = renderHook(() =>
+        useVoicePlayer({ chunks: threeChunks, customEngine: mockEngine })
+      );
+    });
+
+    await vi.waitFor(() => {
+      expect(hookResult.result.current.voices.length).toBe(1);
+    });
+
+    // Start at chunk 0, then click/jump directly to chunk 2
+    act(() => {
+      hookResult.result.current.play(0);
+    });
+    act(() => {
+      hookResult.result.current.play(2);
+    });
+
+    // Simulate stale onEnd from chunk 0 resolving late
+    act(() => {
+      callbacks[0].onEnd?.();
+    });
+
+    // Must remain on chunk 2 and NOT jump back to chunk 1!
+    expect(hookResult.result.current.currentChunkIndex).toBe(2);
+    expect(mockEngine.speakChunk).toHaveBeenCalledTimes(2);
   });
 });

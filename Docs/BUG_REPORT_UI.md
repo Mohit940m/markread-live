@@ -1,6 +1,6 @@
 # UI Bug Report & Enhancement Plan — MarkRead Live
 
-**Date:** November 23, 2026  
+**Date:** November 26, 2026  
 **Status:** Resolved ✅  
 **Branch:** `dev`  
 **Reference Screenshot:** User report (`media_1795372346986_53a5d6da.jpg`)
@@ -117,7 +117,7 @@ Based on the screenshot submitted from local testing:
      - Priority 8 (Score 20): Non-English Standard voices
   2. In `src/hooks/useVoicePlayer.ts`, explicitly prioritized English UK Male natural voice as the default active voice selection on start.
 - **Verification:** Unit tests in `src/tts/browserEngine.test.ts` verify `Google UK English Male` ranks at position #1 ahead of `Google UK English Female`, `Google US English`, and non-English Google voices.
-- **Commit:** Pending
+- **Commit:** `7b4116f`
 
 ---
 
@@ -133,13 +133,33 @@ Based on the screenshot submitted from local testing:
   5. Ensured `html`, `body`, and `#root` have `h-full flex flex-col`.
   6. Verified clicking "Hide Code" strictly hides the editor pane via `hidden` (`display: none`).
 - **Verification:** Unit tests in `src/components/MarkdownEditor.test.tsx` and `src/App.test.tsx` assert `height: 100%` styles and clean hide/show toggles.
-- **Commit:** Pending
+- **Commit:** `7b4116f`
+
+---
+
+### [x] Issue 8: Read Aloud repeats nested points and sub-parts when listening or clicking a section
+- **Severity:** High (Core TTS playback & click-to-read defect)
+- **Observed Behavior:** When listening to (or clicking on) a point/section that contains sub-parts (for example, a main bullet/numbered point with 2 nested sub-points, or a blockquote wrapping `<p>` tags), the TTS engine first reads the **entire parent point including all sub-parts**, and immediately afterwards reads **each sub-part again** one by one, repeating the content (sometimes 2x or 3x in loose Markdown lists).
+- **Root Cause:**
+  1. **Recursive `el.textContent` on Nested DOM Blocks (`src/utils/textChunker.ts#L91-L120`):**
+     `extractSpeechChunksFromElement` queried all block elements with:
+     `container.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, blockquote')`
+     and extracted `el.textContent` for **every** matched element in document order, concatenating child `<p>` and nested `<li>` text into parent blocks and then reading those child blocks again.
+  2. **Double Trigger & Stale Callbacks (`src/App.tsx#L198-L199`, `src/hooks/useVoicePlayer.ts`, `src/tts/browserEngine.ts`):**
+     `handleArticleClick` called both `seekTTS(targetChunkIdx)` and `playTTS(targetChunkIdx)` back-to-back, triggering duplicate `speakChunkAtIndex` calls while playing, and cancelled utterances lacked generation token checks against stale `onend` events.
+- **Resolution:**
+  1. Added `extractDirectBlockText` in `src/utils/textChunker.ts` to traverse inline child nodes (`<strong>`, `<em>`, `<a>`, inline `<code>`, `<span>`, `<br>`) while stopping at nested block/list/skipped containers (`ul`, `ol`, `li`, `p`, `blockquote`, `h1..h6`, `pre`, `.not-prose`, `button`, `svg`, `aria-hidden`).
+  2. Cleared stale `[data-block-index]` attributes before indexing only text-bearing blocks cleanly.
+  3. Simplified `handleArticleClick` in `src/App.tsx` to invoke only `playTTS(targetChunkIdx)` once.
+  4. Added monotonic `playbackTokenRef` in `src/hooks/useVoicePlayer.ts` and `utteranceToken` in `src/tts/browserEngine.ts` (preserved across `pause()`/`resume()`) to ignore stale `onstart`/`onend`/`onerror` callbacks from replaced utterances.
+- **Verification:** Added 6 new unit & integration tests across `src/utils/textChunker.test.ts`, `src/tts/browserEngine.test.ts`, `src/hooks/useVoicePlayer.test.ts`, and `src/App.test.tsx`. All 105 tests pass across 23 test files.
+- **Status:** Resolved ✅
 
 ---
 
 ## 3. Test & Build Verification Summary
 
 - **Total Test Suites:** 23 files passed
-- **Total Unit Tests:** 98 passed (100%)
+- **Total Unit Tests:** 105 passed (100%)
 - **Production Build (`npm run build`):** Succeeded with 0 errors
-- **Initial Bundle Size:** 86.72 kB gzipped (Budget: < 120 kB)
+- **Initial Bundle Size:** 87.95 kB gzipped (Budget: < 120 kB)

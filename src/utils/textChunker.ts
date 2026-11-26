@@ -9,6 +9,76 @@ export interface ChunkOptions {
   skipCodeBlocks?: boolean;
 }
 
+const SPEAKABLE_BLOCK_SELECTOR = 'h1, h2, h3, h4, h5, h6, p, li, blockquote';
+
+const NESTED_BLOCK_OR_SKIP_TAGS = new Set([
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'H5',
+  'H6',
+  'P',
+  'LI',
+  'UL',
+  'OL',
+  'BLOCKQUOTE',
+  'PRE',
+  'BUTTON',
+  'SVG',
+  'SCRIPT',
+  'STYLE',
+]);
+
+/**
+ * Extracts only the direct inline text belonging to `root`, stopping recursion
+ * at nested block/list containers (ul, ol, li, p, blockquote, headings) and
+ * skipped elements (pre, .not-prose, button, svg, aria-hidden) so sub-parts
+ * are never concatenated into parent blocks and repeated during playback.
+ */
+function extractDirectBlockText(root: Element, skipCodeBlocks: boolean): string {
+  const parts: string[] = [];
+
+  const walk = (node: Node) => {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        if (child.textContent) {
+          parts.push(child.textContent);
+        }
+        continue;
+      }
+
+      if (child.nodeType !== Node.ELEMENT_NODE) {
+        continue;
+      }
+
+      const el = child as Element;
+
+      if (el.tagName === 'BR') {
+        parts.push(' ');
+        continue;
+      }
+
+      if (NESTED_BLOCK_OR_SKIP_TAGS.has(el.tagName)) {
+        continue;
+      }
+
+      if (el.getAttribute('aria-hidden') === 'true') {
+        continue;
+      }
+
+      if (skipCodeBlocks && el.classList?.contains('not-prose')) {
+        continue;
+      }
+
+      walk(el);
+    }
+  };
+
+  walk(root);
+  return parts.join('').replace(/\s+/g, ' ').trim();
+}
+
 /**
  * Splits a long text string into clean sentences <= maxChars (default 220).
  * Preserves sentence boundaries (. ! ?) and splits cleanly on clauses or spaces
@@ -77,7 +147,8 @@ export function chunkTextIntoSentences(
 
 /**
  * Extracts speakable chunks from a DOM container (e.g. rendered <article>).
- * Skips code blocks, SVGs, buttons, and decorative elements.
+ * Skips code blocks, SVGs, buttons, decorative elements, and prevents
+ * parent containers from duplicating text of nested blocks/sub-lists.
  */
 export function extractSpeechChunksFromElement(
   container: HTMLElement,
@@ -86,12 +157,17 @@ export function extractSpeechChunksFromElement(
   const { maxChars = 220, skipCodeBlocks = true } = options;
   const chunks: SpeechChunk[] = [];
   let chunkCounter = 0;
+  let blockCounter = 0;
+
+  // Clear stale block tags before re-indexing active speakable blocks
+  container.querySelectorAll('[data-block-index]').forEach((el) => {
+    el.removeAttribute('data-block-index');
+  });
 
   // Query speakable semantic block elements in document order
-  const blockSelectors = 'h1, h2, h3, h4, h5, h6, p, li, blockquote';
-  const elements = Array.from(container.querySelectorAll(blockSelectors));
+  const elements = Array.from(container.querySelectorAll(SPEAKABLE_BLOCK_SELECTOR));
 
-  elements.forEach((el, blockIndex) => {
+  elements.forEach((el) => {
     // If inside a pre/code or not-prose block and skipCodeBlocks is true, skip
     if (skipCodeBlocks && (el.closest('pre') || el.closest('code') || el.closest('.not-prose'))) {
       return;
@@ -102,19 +178,20 @@ export function extractSpeechChunksFromElement(
       return;
     }
 
-    // Clean text
-    const textContent = el.textContent?.replace(/\s+/g, ' ').trim() || '';
+    // Extract only this block's direct text (excluding nested sub-lists/paragraphs)
+    const textContent = extractDirectBlockText(el, skipCodeBlocks);
     if (!textContent) return;
 
-    // Tag element with data attribute for active block highlighting
-    el.setAttribute('data-block-index', String(blockIndex));
+    const currentBlockIndex = blockCounter++;
+    // Tag element with data attribute for active block highlighting & click-to-read
+    el.setAttribute('data-block-index', String(currentBlockIndex));
 
     const sentenceList = chunkTextIntoSentences(textContent, maxChars);
     sentenceList.forEach((sentence) => {
       chunks.push({
         index: chunkCounter++,
         text: sentence,
-        blockIndex,
+        blockIndex: currentBlockIndex,
       });
     });
   });
