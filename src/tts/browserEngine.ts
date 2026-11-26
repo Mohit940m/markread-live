@@ -162,6 +162,7 @@ export class BrowserTTSEngine implements TTSEngine {
   id = 'browser' as const;
   name = 'Smart Browser Speech';
   isReady = true;
+  private utteranceToken = 0;
 
   async init(): Promise<void> {
     this.isReady = typeof window !== 'undefined' && 'speechSynthesis' in window;
@@ -179,6 +180,8 @@ export class BrowserTTSEngine implements TTSEngine {
     options: SpeakOptions
   ): Promise<void> {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+    const token = ++this.utteranceToken;
 
     // Cancel any active utterance before starting
     window.speechSynthesis.cancel();
@@ -199,14 +202,17 @@ export class BrowserTTSEngine implements TTSEngine {
     }
 
     utterance.onstart = () => {
+      if (this.utteranceToken !== token) return;
       options.onStart?.();
     };
 
     utterance.onend = () => {
+      if (this.utteranceToken !== token) return;
       options.onEnd?.();
     };
 
     utterance.onerror = (e) => {
+      if (this.utteranceToken !== token) return;
       if (e.error === 'canceled' || e.error === 'interrupted') {
         return;
       }
@@ -229,6 +235,7 @@ export class BrowserTTSEngine implements TTSEngine {
   }
 
   stop(): void {
+    this.utteranceToken++;
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }

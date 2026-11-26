@@ -97,4 +97,38 @@ describe('Smart Browser Voice Ranking & Engine (NV-1.1 & NV-1.2)', () => {
     engine.stop();
     expect(window.speechSynthesis.cancel).toHaveBeenCalled();
   });
+
+  it('ignores stale onend events from cancelled or superseded utterances (Issue 8)', async () => {
+    const engine = new BrowserTTSEngine();
+    const spokenUtterances: SpeechSynthesisUtterance[] = [];
+    vi.spyOn(window.speechSynthesis, 'speak').mockImplementation((u) => {
+      spokenUtterances.push(u);
+      u.onstart?.({} as SpeechSynthesisEvent);
+    });
+
+    const mockVoice: VoiceOption = {
+      id: 'Google UK English Male',
+      name: 'Google UK English Male',
+      engine: 'browser',
+      lang: 'en-GB',
+      tier: 1,
+      quality: 'natural',
+    };
+
+    const onEndFirst = vi.fn();
+    const onEndSecond = vi.fn();
+
+    await engine.speakChunk({ index: 0, text: 'First utterance' }, mockVoice, { onEnd: onEndFirst });
+    await engine.speakChunk({ index: 1, text: 'Second utterance' }, mockVoice, { onEnd: onEndSecond });
+
+    // Simulate delayed onend firing for cancelled first utterance
+    spokenUtterances[0].onend?.({} as SpeechSynthesisEvent);
+    expect(onEndFirst).not.toHaveBeenCalled();
+
+    // Active second utterance completes normally (even after pause + resume)
+    engine.pause();
+    engine.resume();
+    spokenUtterances[1].onend?.({} as SpeechSynthesisEvent);
+    expect(onEndSecond).toHaveBeenCalledTimes(1);
+  });
 });

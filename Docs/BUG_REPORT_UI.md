@@ -1,7 +1,7 @@
 # UI Bug Report & Enhancement Plan — MarkRead Live
 
 **Date:** November 26, 2026  
-**Status:** Issue 8 Open (TTS Nested Block Repetition) 🐛  
+**Status:** Resolved ✅  
 **Branch:** `dev`  
 **Reference Screenshot:** User report (`media_1795372346986_53a5d6da.jpg`)
 
@@ -137,35 +137,29 @@ Based on the screenshot submitted from local testing:
 
 ---
 
-### [ ] Issue 8: Read Aloud repeats nested points and sub-parts when listening or clicking a section
+### [x] Issue 8: Read Aloud repeats nested points and sub-parts when listening or clicking a section
 - **Severity:** High (Core TTS playback & click-to-read defect)
 - **Observed Behavior:** When listening to (or clicking on) a point/section that contains sub-parts (for example, a main bullet/numbered point with 2 nested sub-points, or a blockquote wrapping `<p>` tags), the TTS engine first reads the **entire parent point including all sub-parts**, and immediately afterwards reads **each sub-part again** one by one, repeating the content (sometimes 2x or 3x in loose Markdown lists).
 - **Root Cause:**
   1. **Recursive `el.textContent` on Nested DOM Blocks (`src/utils/textChunker.ts#L91-L120`):**
-     `extractSpeechChunksFromElement` queries all block elements with:
+     `extractSpeechChunksFromElement` queried all block elements with:
      `container.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, blockquote')`
-     and extracts `el.textContent` for **every** matched element in document order:
-     - When a Markdown list item has nested sub-items (e.g. `<li>Point 1<ul><li>Sub 1</li><li>Sub 2</li></ul></li>`), `querySelectorAll` matches the outer `<li>` **and** both inner `<li>` elements.
-     - Reading `el.textContent` on the outer `<li>` collects `"Point 1 Sub 1 Sub 2"` (parent + all children). Right after, the loop visits each inner `<li>` and reads `"Sub 1"` and `"Sub 2"` all over again.
-     - Similarly, in loose Markdown lists or `<blockquote>` elements (`<blockquote><p>...</p></blockquote>`, `<li><p>...</p></li>`), both the outer container (`<li>`/`<blockquote>`) and inner `<p>` are matched and read separately, causing duplicate narration.
-  2. **Double Trigger on Click-to-Read-From-Here (`src/App.tsx#L198-L199` & `src/hooks/useVoicePlayer.ts#L242-L304`):**
-     In `handleArticleClick`, clicking a block calls both `seekTTS(targetChunkIdx)` and `playTTS(targetChunkIdx)` back-to-back. When audio is already playing (`statusRef.current === 'playing'`), both calls invoke `speakChunkAtIndex(targetChunkIdx)` twice in the same tick, which can cause double utterance queueing or overlapping async synthesis (especially in Piper neural mode).
-- **Proposed Solution / How to Fix:**
-  1. **Extract Own Block Text Only (`src/utils/textChunker.ts`):**
-     - Replace raw `el.textContent` with a recursive child-node text collector that walks inline children (`<strong>`, `<em>`, `<a>`, inline `<code>`, `<span>`, etc.) while **stopping at nested container/block elements** (`ul, ol, li, p, blockquote, h1, h2, h3, h4, h5, h6, pre, button, svg, [aria-hidden="true"]`).
-     - Before assigning `data-block-index`, clear any stale `[data-block-index]` attributes in the container so wrapper-only elements (like loose `<li>` or `<blockquote>` whose own text is empty) do not hold old indices.
-  2. **Single Atomic Playback Call on Click (`src/App.tsx` & `src/hooks/useVoicePlayer.ts`):**
-     - In `handleArticleClick` (`src/App.tsx`), remove the redundant `seekTTS(targetChunkIdx)` call and call `playTTS(targetChunkIdx)` directly (since `play(startIndex)` already sets `status` to `'playing'` and starts from `startIndex`).
-     - In `useVoicePlayer.ts`, ensure `play()` stops any active audio cleanly (and/or uses a monotonic playback token) so back-to-back clicks cannot overlap async chunks.
-  3. **Unit Tests (`src/utils/textChunker.test.ts` & `src/App.test.tsx`):**
-     - Add tests verifying nested bullet/numbered lists (parent with 2 sub-parts), loose lists (`<li><p>...</p></li>`), and `react-markdown` `<blockquote><p>...</p></blockquote>` emit each text segment **exactly once** with zero repetition, and clicking a parent or sub-part jumps cleanly.
-- **Status:** Open (Documented — awaiting fix implementation)
+     and extracted `el.textContent` for **every** matched element in document order, concatenating child `<p>` and nested `<li>` text into parent blocks and then reading those child blocks again.
+  2. **Double Trigger & Stale Callbacks (`src/App.tsx#L198-L199`, `src/hooks/useVoicePlayer.ts`, `src/tts/browserEngine.ts`):**
+     `handleArticleClick` called both `seekTTS(targetChunkIdx)` and `playTTS(targetChunkIdx)` back-to-back, triggering duplicate `speakChunkAtIndex` calls while playing, and cancelled utterances lacked generation token checks against stale `onend` events.
+- **Resolution:**
+  1. Added `extractDirectBlockText` in `src/utils/textChunker.ts` to traverse inline child nodes (`<strong>`, `<em>`, `<a>`, inline `<code>`, `<span>`, `<br>`) while stopping at nested block/list/skipped containers (`ul`, `ol`, `li`, `p`, `blockquote`, `h1..h6`, `pre`, `.not-prose`, `button`, `svg`, `aria-hidden`).
+  2. Cleared stale `[data-block-index]` attributes before indexing only text-bearing blocks cleanly.
+  3. Simplified `handleArticleClick` in `src/App.tsx` to invoke only `playTTS(targetChunkIdx)` once.
+  4. Added monotonic `playbackTokenRef` in `src/hooks/useVoicePlayer.ts` and `utteranceToken` in `src/tts/browserEngine.ts` (preserved across `pause()`/`resume()`) to ignore stale `onstart`/`onend`/`onerror` callbacks from replaced utterances.
+- **Verification:** Added 6 new unit & integration tests across `src/utils/textChunker.test.ts`, `src/tts/browserEngine.test.ts`, `src/hooks/useVoicePlayer.test.ts`, and `src/App.test.tsx`. All 105 tests pass across 23 test files.
+- **Status:** Resolved ✅
 
 ---
 
 ## 3. Test & Build Verification Summary
 
 - **Total Test Suites:** 23 files passed
-- **Total Unit Tests:** 98 passed (100%)
+- **Total Unit Tests:** 105 passed (100%)
 - **Production Build (`npm run build`):** Succeeded with 0 errors
-- **Initial Bundle Size:** 86.72 kB gzipped (Budget: < 120 kB)
+- **Initial Bundle Size:** 87.95 kB gzipped (Budget: < 120 kB)

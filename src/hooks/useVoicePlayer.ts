@@ -66,6 +66,8 @@ export function useVoicePlayer({
   const onChunkChangeRef = useRef(onChunkChange);
   onChunkChangeRef.current = onChunkChange;
 
+  const playbackTokenRef = useRef<number>(0);
+
   // Initialize engines and load voices
   const refreshVoices = useCallback(async () => {
     try {
@@ -206,6 +208,7 @@ export function useVoicePlayer({
       if (!voice) return;
 
       const engine = getEngineForVoice(voice);
+      const token = ++playbackTokenRef.current;
 
       // NV-4.1: Trigger lookahead prefetch for chunk i + 1 if using Piper neural engine
       if (voice.engine === 'piper' && index + 1 < currentChunks.length) {
@@ -215,10 +218,12 @@ export function useVoicePlayer({
       engine.speakChunk(chunk, voice, {
         rate: rateRef.current,
         onStart: () => {
+          if (playbackTokenRef.current !== token) return;
           setCurrentChunkIndex(index);
           onChunkChangeRef.current?.(index, chunk);
         },
         onEnd: () => {
+          if (playbackTokenRef.current !== token) return;
           if (statusRef.current === 'playing') {
             const nextIdx = index + 1;
             if (nextIdx < currentChunks.length) {
@@ -231,6 +236,7 @@ export function useVoicePlayer({
           }
         },
         onError: (err) => {
+          if (playbackTokenRef.current !== token) return;
           console.warn('[useVoicePlayer] Playback error at chunk', index, err);
           setStatus('idle');
         },
@@ -266,6 +272,7 @@ export function useVoicePlayer({
   }, [selectedVoice]);
 
   const stop = useCallback(() => {
+    playbackTokenRef.current++;
     browserEngineRef.current.stop();
     piperEngineRef.current.stop();
     googleByokEngineRef.current.stop();
